@@ -4,6 +4,7 @@ A Chrome extension that allows batch-print PDFs and download derivatives from BI
 
 ![ezgif-4-8877da9391](https://github.com/PerkinsAndWill-IO/sPrint/assets/62248969/776ef003-92f6-4031-923c-be8ed1508264)
 
+<br/><br/>
 ## Get Started 🚀
 ### To run locally 🧑‍💻:
 1. Navigate to ./extension folder
@@ -28,7 +29,7 @@ A Chrome extension that allows batch-print PDFs and download derivatives from BI
 7. Load ```./extension/dist``` folder
 8. Check the extension console and copy the callback URL, then set it in the APS app that you created.
 
-
+<br/><br/>
 ## Plugin  Architecture 🏛️
 The plugin consist of 2 parts:
 
@@ -41,4 +42,5 @@ The plugin consist of 2 parts:
 
 ![sPrint](https://github.com/PerkinsAndWill-IO/sPrint/assets/62248969/50e0195f-62bb-4108-a5e9-0088fffd77b9)
 
+<br/><br/>
 ## FAQ ❓
