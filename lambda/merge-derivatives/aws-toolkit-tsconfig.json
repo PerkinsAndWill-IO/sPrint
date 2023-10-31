@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "commonjs",
+        "inlineSourceMap": true,
+        "outDir": "C:\\Repos\\shl-bim360-print-lambda\\hello-world",
+        "rootDir": ".",
+        "sourceRoot": "D:/Repos/shl-tedium/lambda/merge-derivatives",
+        "typeRoots": [
+            "node_modules/@types"
+        ],
+        "types": [
+            "node"
+        ]
+    }
+}

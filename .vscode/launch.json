@@ -1,0 +1,19 @@
+{
+  "configurations": [
+    {
+      "type": "aws-sam",
+      "request": "direct-invoke",
+      "name": "merge-derivatives:app.lambdaHandler (nodejs18.x)",
+      "invokeTarget": {
+        "target": "code",
+        "projectRoot": "${workspaceFolder}/lambda/merge-derivatives",
+        "lambdaHandler": "app.lambdaHandler"
+      },
+      "lambda": {
+        "runtime": "nodejs18.x",
+        "payload": {},
+        "environmentVariables": {}
+      }
+    }
+  ]
+}
