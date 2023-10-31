@@ -1,6 +1,6 @@
 
 # sPrint 🏃‍♂️
-A Chrome extension that allows batch-print PDFs and download derivatives from BIM360 and ACC platforms.
+Printing PDF's from Autodesk Cloud (BIM360/ACC) used to be a time consuming task. Going through all drawings and requesting .PDF's took a while and BIM managers need to quality assurance large drawing sets. sPrint is a Chrome extension that allows batch-print PDFs and download things (derivatives) from Autodesk Cloud Platforms.
 
 ![ezgif-4-8877da9391](https://github.com/PerkinsAndWill-IO/sPrint/assets/62248969/776ef003-92f6-4031-923c-be8ed1508264)
 
