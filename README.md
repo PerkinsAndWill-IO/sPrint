@@ -18,6 +18,7 @@ Printing PDF's from Autodesk Cloud (BIM360/ACC) used to be a time consuming task
 8. cd in lambda folder then run ```sam build``` (you may have to install esbuild)
 9. then ```sam package```
 10. finally ```sam deploy```
+11. Change the name of the FunctionName variable in \src\services\aws.ts to your own lambda function
 
     
 ### To run locally 🧑‍💻:
