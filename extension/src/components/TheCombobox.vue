@@ -100,6 +100,7 @@ const mappedItems = computed(() =>
   props.items.map((item) => ({ id: item, name: item }))
 );
 
+//7.82
 const selectedItems = ref<IndexedItem[]>([]);
 
 watch(

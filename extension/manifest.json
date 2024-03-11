@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sprint",
-  "version": "0.0.1",
+  "version": "1.0.5",
   "action": {
     "default_popup": "index.html"
   },
@@ -29,13 +29,10 @@
   "permissions": [
     "webRequest",
     "tabs",
-    "declarativeNetRequest",
     "notifications",
     "downloads",
     "activeTab",
     "storage",
-    "cookies",
-    "scripting",
     "identity"
   ],
   "host_permissions": ["https://*.autodesk.com/"],

@@ -1,4 +1,4 @@
-import { getProjectManifest } from "../services/aps";
+import { getModelManifest } from "../services/aps";
 import { useDerivativesStore } from "../stores/derivatives";
 import { Platform } from "../types";
 
@@ -91,7 +91,7 @@ async function onButtonClick() {
 
     if (!urn || !token) return;
 
-    const manifest = await getProjectManifest(urn, token);
+    const manifest = await getModelManifest(urn, token);
     // store.setDerivativesFromManifest(manifest);
 
     //TODO: send it to background

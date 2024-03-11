@@ -12,7 +12,6 @@ export async function downloadDerivatives(outputPath: string, urn: string, deriv
     }
 
     const downloadObjects = await Promise.all(downloadObjectPromises);
-    console.log(downloadObjects);
     
 
     const fileNamePromises: Promise<string>[] = [];
