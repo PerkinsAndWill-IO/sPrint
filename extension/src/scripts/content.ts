@@ -16,100 +16,100 @@ chrome.runtime.onMessage.addListener(function (request) {
     return;
   }
 
-  observeElementLoad();
+  // observeElementLoad();
 });
 
 let button: HTMLButtonElement;
 
-function executeWhenElementLoaded() {
-  const element = document.querySelector(
-    '[data-testid="BimViewerHeaderInfoSection"]'
-  );
+// function executeWhenElementLoaded() {
+//   const element = document.querySelector(
+//     '[data-testid="BimViewerHeaderInfoSection"]'
+//   );
 
-  if (element) {
-    button = document.createElement("button");
+//   if (element) {
+//     button = document.createElement("button");
 
-    button.innerText = "Export All Pdfs!";
-    button.style.border = "1px solid white";
-    button.style.backgroundColor = "transparent";
-    button.style.color = "white";
-    button.style.padding = "4px 8px";
-    button.style.fontSize = "13px";
-    button.style.cursor = "pointer";
+//     button.innerText = "Export All Pdfs!";
+//     button.style.border = "1px solid white";
+//     button.style.backgroundColor = "transparent";
+//     button.style.color = "white";
+//     button.style.padding = "4px 8px";
+//     button.style.fontSize = "13px";
+//     button.style.cursor = "pointer";
 
-    element.appendChild(button);
-    button.addEventListener("click", onButtonClick);
-  }
-}
+//     element.appendChild(button);
+//     button.addEventListener("click", onButtonClick);
+//   }
+// }
 
-function observeElementLoad() {
-  console.log("Observing element load");
+// function observeElementLoad() {
+//   console.log("Observing element load");
 
-  const observer = new MutationObserver(async (mutationsList) => {
-    for (const mutation of mutationsList) {
-      if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
-        for (const addedNode of mutation.addedNodes) {
-          if (
-            addedNode instanceof Element &&
-            addedNode.hasAttribute("data-testid")
-          ) {
-            const attributeValue = addedNode.getAttribute("data-testid");
+//   const observer = new MutationObserver(async (mutationsList) => {
+//     for (const mutation of mutationsList) {
+//       if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+//         for (const addedNode of mutation.addedNodes) {
+//           if (
+//             addedNode instanceof Element &&
+//             addedNode.hasAttribute("data-testid")
+//           ) {
+//             const attributeValue = addedNode.getAttribute("data-testid");
 
-            if (attributeValue != "BimViewer") return;
+//             if (attributeValue != "BimViewer") return;
 
-            // Element is added to the DOM, execute the function
-            executeWhenElementLoaded();
-            // Stop observing once the element is loaded
-            observer.disconnect();
-            return;
-          }
-        }
-      }
-    }
-  });
+//             // Element is added to the DOM, execute the function
+//             executeWhenElementLoaded();
+//             // Stop observing once the element is loaded
+//             observer.disconnect();
+//             return;
+//           }
+//         }
+//       }
+//     }
+//   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
-}
+//   observer.observe(document.body, { childList: true, subtree: true });
+// }
 
-async function onButtonClick() {
-  disableButton();
-  let token = "";
-  let urn = "";
+// async function onButtonClick() {
+//   disableButton();
+//   let token = "";
+//   let urn = "";
 
-  chrome.storage.local.get(["token"], function (result) {
-    token = result.token;
-    if (!token) return alert("Please login to your account first!");
-    console.log("Token currently is " + result.token);
-  });
+//   chrome.storage.local.get(["token"], function (result) {
+//     token = result.token;
+//     if (!token) return alert("Please login to your account first!");
+//     console.log("Token currently is " + result.token);
+//   });
 
-  chrome.storage.local.get(["urn"], async (result) => {
-    urn = result.urn;
+//   chrome.storage.local.get(["urn"], async (result) => {
+//     urn = result.urn;
 
-    //cant use store here
-    const store = useDerivativesStore();
-    console.log("Urn currently is " + result.urn);
+//     //cant use store here
+//     const store = useDerivativesStore();
+//     console.log("Urn currently is " + result.urn);
 
-    if (!urn || !token) return;
+//     if (!urn || !token) return;
 
-    const manifest = await getModelManifest(urn, token);
-    // store.setDerivativesFromManifest(manifest);
+//     const manifest = await getModelManifest(urn, token);
+//     // store.setDerivativesFromManifest(manifest);
 
-    //TODO: send it to background
-    // exportDerivatives(store.derivatives);
-    enableButton();
-  });
-}
+//     //TODO: send it to background
+//     // exportDerivatives(store.derivatives);
+//     enableButton();
+//   });
+// }
 
-function disableButton() {
-  button.disabled = true;
-  button.style.borderColor = "rgb(129, 144, 153)";
-  button.style.color = "rgb(129, 144, 153)";
-}
+// function disableButton() {
+//   button.disabled = true;
+//   button.style.borderColor = "rgb(129, 144, 153)";
+//   button.style.color = "rgb(129, 144, 153)";
+// }
 
-function enableButton() {
-  button.disabled = false;
-  button.style.borderColor = "rgb(255,255,255)";
-  button.style.color = "rgb(255,255,255)";
-}
+// function enableButton() {
+//   button.disabled = false;
+//   button.style.borderColor = "rgb(255,255,255)";
+//   button.style.color = "rgb(255,255,255)";
+// }
 
-observeElementLoad();
+// observeElementLoad();

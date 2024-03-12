@@ -49,6 +49,7 @@ export async function refreshToken() {
   return json;
 }
 
+//https://auth.autodesk.com/as/kOAJJqMpBa/resume/as/authorization.ping?opentoken=T1RLAQJLC1-bQZ6_YMtWVmZTUFaot7LFIBBEtE60eDYKpYrnvZXHrirhAADQWVtyeu5yt2fBvF99cQ0LCp0lxN9lgK_Pvcw28SOb8gAI-PkZ4l_Q_51LGtyJxWu1ntZ4G0UCBOA1MsbuYiD2Vy-rncKBRYzWb8-rqa4NPlINd2CskSYijKbaKl1ZawpjRQP50S1l5f_s4bBHgDPW0a3oKrapA9hsnFkRx8_TyYU1JgDAEP5Zhgack9vA0ybV29QeSjS9MIYs7ztiv1bnNpYod_GVrS9aNjCgfCFb_zxKB08LfhVv4DAgUP0I06nmo6QJIOCXZ2Bjvtr-Yp6eZQ**&lang=en
 async function authorize() {
   const redirectURL = chrome.identity.getRedirectURL("oauth/callback/");
 
@@ -61,6 +62,7 @@ async function authorize() {
   authURL += `&scope=data:read`;
 
   console.log("redirectURL", redirectURL);
+  console.log("clinet id", import.meta.env.VITE_APS_CLIENT_ID);
   console.log("authURL", authURL);
 
   return await chrome.identity.launchWebAuthFlow({
@@ -68,8 +70,6 @@ async function authorize() {
     url: authURL,
   });
 }
-
-//developer.api.autodesk.com/authentication/v2/authorize?response_type=code&client_id=AKAGTyBAdO0avtOzwUAvHDViTdY7VSKT&redirect_uri=https%3A%2F%2Fjhejkkfapdbmpfkjhdddjaegbiocolpl.chromiumapp.org%2Foauth%2Fcallback%2F&scope=data:read
 
 export async function getAccessToken() {
   const url = await authorize();
@@ -85,3 +85,15 @@ const getCredentials = () =>
       ":" +
       import.meta.env.VITE_APS_CLIENT_SECRET
   );
+
+// https://developer.api.autodesk.com/authentication/v2/authorize?
+// response_type=code
+// &client_id=AKAGTyBAdO0avtOzwUAvHDViTdY7VSKT
+// &redirect_uri=https%3A%2F%2Flhicbhifoceknmkdmnddkealibininnc.chromiumapp.org%2Foauth%2Fcallback%2F
+// &scope=data:read
+
+// https://developer.api.autodesk.com/authentication/v2/authorize?
+// response_type=code
+// &client_id=AKAGTyBAdO0avtOzwUAvHDViTdY7VSKT
+// &redirect_uri=https%3A%2F%2Fnapcofanfhdeefchiihhlpnldbnbljpa.chromiumapp.org%2Foauth%2Fcallback%2F
+// &scope=data:read
