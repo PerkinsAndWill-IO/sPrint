@@ -1,6 +1,6 @@
 import { PortMessage, PortName, PortResponse } from "../constants/port";
 import { exportDerivatives } from "../services/aws";
-import { Derivative, DownloadObject, Platform } from "../types";
+import { Derivative, Platform } from "../types";
 
 interface APSTabInfo {
   tabId: number;
@@ -9,23 +9,33 @@ interface APSTabInfo {
 
 const tabsInfo: APSTabInfo[] = [];
 
-//listen => find a URN
+let keepAliveInterval: number | undefined;
+
+const keepAlive = (state: boolean) => {
+  if (state && !keepAliveInterval) {
+    keepAliveInterval = setInterval(() => {
+      chrome.runtime.getPlatformInfo();
+      console.log("Keep alive");
+    }, 1000);
+  } else if (!state && keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+    keepAliveInterval = undefined;
+  }
+};
+
+// Listen for manifest URL requests to update tab info
 chrome.webRequest.onBeforeSendHeaders.addListener(
-  function onBeforeSendHeaders(
-    details: chrome.webRequest.WebRequestHeadersDetails
-  ) {
+  (details) => {
     const urn = details.url.split("manifest/")[1]?.split("?")[0];
     updateAPSTabsInfo(details.tabId, urn);
 
-    //set urn from the active tab
-    chrome.storage.local.set({ urn: urn }, function () {
+    // Store the URN locally
+    chrome.storage.local.set({ urn: urn }, () => {
       console.log("Urn saved: " + urn);
     });
 
-    //set tab ui - add button
-    let tab: chrome.tabs.Tab;
-    chrome.tabs.get(details.tabId, function (t) {
-      tab = t;
+    // Update tab UI
+    chrome.tabs.get(details.tabId, (tab) => {
       udpateTabUI(tab, details.tabId);
     });
   },
@@ -33,26 +43,22 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
   ["requestHeaders"]
 );
 
-//cet URN on tab change
-chrome.tabs.onActivated.addListener(function (activeInfo) {
+// Update URN on tab activation
+chrome.tabs.onActivated.addListener((activeInfo) => {
   const tabInfo = tabsInfo.find((t) => t.tabId === activeInfo.tabId);
 
   if (tabInfo?.urn) {
-    chrome.storage.local.set({ urn: tabInfo?.urn }, function () {
-      console.log("Urn set: " + tabInfo?.urn);
+    chrome.storage.local.set({ urn: tabInfo.urn }, () => {
+      console.log("Urn set: " + tabInfo.urn);
     });
   }
 });
 
-//inject a button
-function udpateTabUI(
-  tab: chrome.tabs.Tab | chrome.tabs.TabChangeInfo,
-  tabId: number
-) {
+// Inject a button based on URL pattern
+function udpateTabUI(tab: chrome.tabs.Tab, tabId: number) {
   const bim360regexp = new RegExp(
     "https://docs.b360.autodesk.com/projects/.*/folders/.*/detail/viewer/items/.*"
   );
-
   const accRegexp = new RegExp(
     "https://acc.autodesk.com/docs/files/projects/.*"
   );
@@ -76,17 +82,22 @@ function udpateTabUI(
   }
 }
 
-//open a new port to communicate with the popup
-chrome.runtime.onConnect.addListener(async function (port) {
-  if (port.name != PortName.SPRINT) return;
+// Open a port for communication with the popup
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== PortName.SPRINT) return;
 
-  port.onMessage.addListener(async function (msg) {
+  port.onMessage.addListener(async (msg) => {
     if (msg.message === PortMessage.EXPORT) {
       const modelName = msg.modelName;
 
-      console.log("modelname", modelName, msg);
-
-      await exportInBackground(port, modelName);
+      try {
+        keepAlive(true);
+        await exportInBackground(port, modelName);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        keepAlive(false);
+      }
     }
   });
 });
@@ -105,10 +116,7 @@ function updateAPSTabsInfo(tabId: number, urn: string) {
   if (tabInfo) {
     tabInfo.urn = urn;
   } else {
-    tabsInfo.push({
-      tabId,
-      urn,
-    });
+    tabsInfo.push({ tabId, urn });
   }
 }
 
@@ -117,18 +125,14 @@ async function exportInBackground(
   modelName: string
 ) {
   try {
-    let derivatives: Derivative[];
+    const { derivatives } = await chrome.storage.local.get("derivatives");
+    const filename = `${modelName}.zip`;
 
-    const obj = await chrome.storage.local.get(["derivatives"]);
-    const filename = modelName + ".zip";
+    const parsedDerivatives = JSON.parse(derivatives) as Derivative[];
+    const { token, urn } = await chrome.storage.local.get(["token", "urn"]);
 
-    derivatives = JSON.parse(obj.derivatives) as Derivative[];
-
-    const { token } = await chrome.storage.local.get(["token"]);
-    const { urn } = await chrome.storage.local.get(["urn"]);
-
-    if (!token) return;
-    const res = await exportDerivatives(derivatives, urn, token);
+    if (!token || !urn) return;
+    const res = await exportDerivatives(parsedDerivatives, urn, token);
 
     if (!res) return;
     const { url } = res;
@@ -139,8 +143,7 @@ async function exportInBackground(
       conflictAction: "uniquify",
     });
 
-    alert("Downloading of your PDF has started: " + filename);
-
+    alert(`Downloading of your PDF has started: ${filename}`);
     port.postMessage({ message: PortResponse.EXPORTED, error: false });
   } catch (error) {
     port.postMessage({ message: error, error: true });
