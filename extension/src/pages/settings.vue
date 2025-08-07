@@ -1,8 +1,10 @@
 <template>
   <div class="overflow-x-hidden">
-    <SettingsSectionWrapper title="General"> TODO </SettingsSectionWrapper>
-    <SettingsSectionWrapper title="Naming"> TODO </SettingsSectionWrapper>
-    <SettingsSectionWrapper title="Export"> TODO </SettingsSectionWrapper>
+    <SettingsSectionWrapper title="General">
+      <SettingsSectionContent />
+    </SettingsSectionWrapper>
+    <!-- <SettingsSectionWrapper title="Naming"> TODO </SettingsSectionWrapper>
+    <SettingsSectionWrapper title="Export"> TODO </SettingsSectionWrapper> -->
 
     <div class="w-full flex justify-between pt-2">
       <button
@@ -25,6 +27,7 @@
 import { useRouter } from "vue-router";
 import SettingsSectionWrapper from "../components/SettingsSectionWrapper.vue";
 import { useUserStore } from "../stores/user";
+import SettingsSectionContent from "../components/SettingsSectionContent.vue";
 
 const userStore = useUserStore();
 const router = useRouter();

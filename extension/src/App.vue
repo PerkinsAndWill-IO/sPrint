@@ -30,7 +30,7 @@
             class="rounded-full border-2 bg-white group text-slate-800 h-8 flex items-center px-2 space-x-2"
           >
             <p class="group-hover:scale-105 transition w-44">
-              Sign-in with Autodesk account
+              Sign-in with Speckle account
             </p>
             <img
               class="w-4 h-4"
