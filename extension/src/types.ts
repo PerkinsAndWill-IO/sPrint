@@ -17,6 +17,9 @@ export type DownloadObject = {
   urn: string;
   derivatives: string[];
   token: string;
+  options: {
+    includeMarkups: boolean;
+  };
 };
 
 export type APSDerivative = {

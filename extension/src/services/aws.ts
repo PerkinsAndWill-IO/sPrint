@@ -1,5 +1,6 @@
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { APSManifest, Derivative, DownloadObject } from "../types";
+import defu from "defu";
 
 const lambdaClient = new LambdaClient({
   region: import.meta.env.VITE_AWS_REGION,
@@ -65,9 +66,14 @@ export async function formatDownloadObjects(
 export async function exportDerivatives(
   derivatives: Derivative[],
   urn: string,
-  token: string
+  token: string,
+  options: {
+    includeMarkups?: boolean;
+  } = {}
 ) {
   try {
+    const assignedOptions = defu({ includeMarkups: false }, options);
+
     if (derivatives == null || urn == null || token == null) return;
 
     const derivativesToExport: Derivative[] = [];
@@ -83,6 +89,7 @@ export async function exportDerivatives(
       urn: urn,
       token: token,
       derivatives: derivativesToExport.map((d) => d.urn),
+      options: assignedOptions,
     };
 
     console.log("exportDerivatives", downloadObject);

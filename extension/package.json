@@ -17,6 +17,7 @@
     "@vueuse/core": "^10.5.0",
     "aws-sdk": "^2.1397.0",
     "crypto-js": "^4.2.0",
+    "defu": "^6.1.4",
     "pinia": "^2.1.7",
     "vue": "^3.2.47",
     "vue-collapsed": "^1.2.9",

@@ -1,3 +1,4 @@
+import defu from "defu";
 import { PortMessage, PortName, PortResponse } from "../constants/port";
 import { exportDerivatives } from "../services/aws";
 import { Derivative, Platform } from "../types";
@@ -122,9 +123,14 @@ function updateAPSTabsInfo(tabId: number, urn: string) {
 
 async function exportInBackground(
   port: chrome.runtime.Port,
-  modelName: string
+  modelName: string,
+  options: {
+    includeMarkups?: boolean;
+  } = {}
 ) {
   try {
+    const assignedOptions = defu({ includeMarkups: false }, options);
+
     const { derivatives } = await chrome.storage.local.get("derivatives");
     const filename = `${modelName}.zip`;
 
@@ -132,7 +138,12 @@ async function exportInBackground(
     const { token, urn } = await chrome.storage.local.get(["token", "urn"]);
 
     if (!token || !urn) return;
-    const res = await exportDerivatives(parsedDerivatives, urn, token);
+    const res = await exportDerivatives(
+      parsedDerivatives,
+      urn,
+      token,
+      assignedOptions
+    );
 
     if (!res) return;
     const { url } = res;
