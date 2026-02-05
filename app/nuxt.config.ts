@@ -27,5 +27,16 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
+  },
+
+  runtimeConfig: {
+    // Private keys (only available on server-side)
+    apsClientId: process.env.APS_CLIENT_ID,
+    apsClientSecret: process.env.APS_CLIENT_SECRET,
+    apsRedirectUri: process.env.APS_REDIRECT_URI || 'http://localhost:3000/api/auth/aps/callback',
+    // Public keys (exposed to client-side)
+    public: {
+      // Add any public config here if needed
+    }
   }
 })
