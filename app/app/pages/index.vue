@@ -167,7 +167,7 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
           :animate="{ opacity: 1 }"
           :transition="{ duration: 0.8, delay: 0.8 }"
         >
-          Connect your BIM360 & ACC accounts to start managing your prints efficiently.
+          Sign in to start managing your prints efficiently.
         </Motion>
       </Motion>
     </div>
