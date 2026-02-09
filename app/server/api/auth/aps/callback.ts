@@ -76,10 +76,8 @@ export default eventHandler(async (event) => {
 
     const tokens = await tokenResponse.json()
 
-    // Store tokens in HTTP-only cookies
-    // Access token expires in 1 hour (3600 seconds), refresh token is long-lived
     const expiresIn = tokens.expires_in || 3600
-    const maxAge = expiresIn - 60 // Subtract 1 minute for safety
+    const maxAge = expiresIn - 60
 
     setCookie(event, 'aps_access_token', tokens.access_token, {
       httpOnly: true,

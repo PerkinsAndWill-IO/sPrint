@@ -15,7 +15,9 @@ definePageMeta({
     </template>
 
     <template #body>
-      <h1 class="text-2xl font-semibold">Hi</h1>
+      <div class="p-4">
+        <ApsProjectTree />
+      </div>
     </template>
   </UDashboardPanel>
 </template>

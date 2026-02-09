@@ -28,7 +28,7 @@ export default eventHandler(async (event) => {
   authUrl.searchParams.set('response_type', 'code')
   authUrl.searchParams.set('client_id', clientId)
   authUrl.searchParams.set('redirect_uri', redirectUri)
-  authUrl.searchParams.set('scope', 'data:read')
+  authUrl.searchParams.set('scope', 'data:read account:read')
   authUrl.searchParams.set('state', state)
 
   return {
