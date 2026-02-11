@@ -1,4 +1,4 @@
-import type { ApsFolderContent } from '~/types/aps'
+import { normalizeFolderContents } from '../../utils/aps-normalize'
 
 export default eventHandler(async (event) => {
   const { projectId, folderId } = getQuery(event)
@@ -14,15 +14,5 @@ export default eventHandler(async (event) => {
     `/data/v1/projects/${projectId}/folders/${folderId}/contents`
   )
 
-  const contents: ApsFolderContent[] = response.data.map((item) => {
-    const name = item.attributes.displayName || item.attributes.name || 'Unnamed'
-    return {
-      id: item.id,
-      name,
-      type: item.type === 'folders' ? 'folders' as const : 'items' as const,
-      isRevitFile: name.toLowerCase().endsWith('.rvt')
-    }
-  })
-
-  return contents
+  return normalizeFolderContents(response.data)
 })

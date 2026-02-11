@@ -21,6 +21,7 @@
     "@unovis/vue": "^1.6.2",
     "@vueuse/core": "^14.1.0",
     "@vueuse/nuxt": "^14.1.0",
+    "archiver": "^7.0.1",
     "date-fns": "^4.1.0",
     "motion-v": "^1.10.2",
     "nuxt": "^4.3.0",
@@ -30,7 +31,10 @@
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.13.0",
+    "@types/archiver": "^7.0.0",
+    "@vue/test-utils": "^2.4.6",
     "eslint": "^9.39.2",
+    "happy-dom": "^20.6.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18",
     "vue-tsc": "^3.2.4"

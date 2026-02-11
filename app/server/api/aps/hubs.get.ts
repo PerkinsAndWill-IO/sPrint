@@ -1,4 +1,4 @@
-import type { ApsHub } from '~/types/aps'
+import { normalizeHubs, normalizeWarnings } from '../../utils/aps-normalize'
 
 interface ApsHubsRawResponse {
   data: Array<{ id: string, attributes: { name: string, region: string } }>
@@ -12,13 +12,8 @@ export default eventHandler(async (event) => {
 
   const response = await apsFetch<ApsHubsRawResponse>(token, '/project/v1/hubs')
 
-  const hubs: ApsHub[] = response.data.map(hub => ({
-    id: hub.id,
-    name: hub.attributes.name,
-    region: hub.attributes.region
-  }))
-
-  const warnings = (response.meta?.warnings || []).map(w => w.Detail || w.Title || 'Unknown warning')
+  const hubs = normalizeHubs(response.data)
+  const warnings = normalizeWarnings(response.meta?.warnings)
 
   return { hubs, warnings }
 })

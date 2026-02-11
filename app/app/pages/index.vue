@@ -49,7 +49,7 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
       <Motion
         as="div"
-        class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/30 rounded-full blur-[120px]"
+        class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/15 dark:bg-indigo-600/30 rounded-full blur-[120px]"
         :initial="{ opacity: 0, scale: 0.5 }"
         :animate="{ 
           opacity: 1, 
@@ -66,7 +66,7 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
       />
       <Motion
         as="div"
-        class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-pink-600/30 rounded-full blur-[120px]"
+        class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-pink-600/15 dark:bg-pink-600/30 rounded-full blur-[120px]"
         :initial="{ opacity: 0, scale: 0.5 }"
         :animate="{ 
           opacity: 1, 
@@ -83,7 +83,7 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
       />
       <Motion
         as="div"
-        class="absolute top-[40%] left-[40%] w-[30%] h-[30%] bg-purple-600/20 rounded-full blur-[100px]"
+        class="absolute top-[40%] left-[40%] w-[30%] h-[30%] bg-purple-600/10 dark:bg-purple-600/20 rounded-full blur-[100px]"
         :initial="{ opacity: 0 }"
         :animate="{ 
           opacity: 1, 
@@ -122,7 +122,7 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
           </Motion>
           <Motion
             as="p"
-            class="text-lg md:text-xl text-slate-400 font-light"
+            class="text-lg md:text-xl text-muted font-light"
             :initial="{ opacity: 0 }"
             :animate="{ opacity: 1 }"
             :transition="{ duration: 0.8, delay: 0.4 }"
@@ -142,7 +142,7 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
           <button
             @click="handleLogin"
             :disabled="isLoading"
-            class="group w-full relative flex items-center justify-center gap-3 bg-white hover:bg-indigo-50 text-slate-900 px-8 py-4 rounded-full transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+            class="group w-full relative flex items-center justify-center gap-3 bg-white dark:bg-white text-slate-900 px-8 py-4 rounded-full transition-all duration-300 shadow-lg dark:shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-xl dark:hover:shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
           >
             <span v-if="isLoading" class="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
             <template v-else>
@@ -155,14 +155,14 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
             </template>
             
             <!-- Button glow effect -->
-            <div class="absolute inset-0 rounded-full ring-2 ring-white/20 group-hover:ring-indigo-400/50 transition-all duration-300"></div>
+            <div class="absolute inset-0 rounded-full ring-2 ring-slate-200 dark:ring-white/20 group-hover:ring-indigo-400/50 transition-all duration-300"></div>
           </button>
         </Motion>
 
         <!-- Footer Text -->
         <Motion
           as="p"
-          class="text-sm text-slate-500 text-center max-w-xs"
+          class="text-sm text-dimmed text-center max-w-xs"
           :initial="{ opacity: 0 }"
           :animate="{ opacity: 1 }"
           :transition="{ duration: 0.8, delay: 0.8 }"

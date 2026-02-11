@@ -31,7 +31,10 @@ const groups = computed(() => [{
       :ui="{ footer: 'lg:border-t lg:border-default' }"
     >
       <template #header="{ collapsed }">
-        <TeamsMenu :collapsed="collapsed" />
+        <NuxtLink to="/dashboard" class="flex items-center px-2 py-2">
+          <TheLogo v-if="!collapsed" class="h-8 w-auto" />
+          <span v-else class="text-lg font-bold">S</span>
+        </NuxtLink>
       </template>
 
       <template #default="{ collapsed }">

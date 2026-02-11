@@ -62,6 +62,7 @@ export function useApsProjects() {
     const children: ApsTreeItem[] = projects.map((project): ApsTreeItem => ({
       label: project.name,
       icon: 'i-lucide-folder-kanban',
+      slot: 'project' as const,
       _apsType: 'project',
       _apsId: `project-${project.id}`,
       _hubId: hubId,
@@ -175,7 +176,7 @@ export function useApsProjects() {
           searchProgress.value = `Scanning: ${data.folder} (${data.scanned} folders scanned)`
           break
         case 'done':
-          searchProgress.value = `Done! Found ${data.total} .rvt file${data.total === 1 ? '' : 's'}`
+          searchProgress.value = ''
           searchingProject.value = null
           eventSource.close()
           break

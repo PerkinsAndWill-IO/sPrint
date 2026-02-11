@@ -1,3 +1,5 @@
+import { searchRevitFiles } from '../../utils/aps-traversal'
+
 export default eventHandler(async (event) => {
   const { hubId, projectId } = getQuery(event)
 
@@ -22,52 +24,41 @@ export default eventHandler(async (event) => {
       `/project/v1/hubs/${hubId}/projects/${projectId}/topFolders`
     )
 
-    const queue: Array<{ id: string, path: string }> = topFoldersResponse.data
+    const topFolders = topFoldersResponse.data
       .filter(item => item.type === 'folders')
       .map(item => ({
         id: item.id,
         path: item.attributes.displayName || item.attributes.name || 'Unnamed'
       }))
 
-    let scanned = 0
     let totalFiles = 0
 
-    // BFS through all folders
-    while (queue.length > 0) {
-      const folder = queue.shift()!
-      scanned++
-
-      send({ type: 'progress', folder: folder.path, scanned })
-
-      try {
-        let nextUrl: string | null = `/data/v1/projects/${projectId}/folders/${folder.id}/contents`
-
-        while (nextUrl) {
-          const response = await apsFetch<{
-            data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }>
-            links?: { next?: { href: string } }
-          }>(token, nextUrl)
-
-          for (const item of response.data) {
-            const name = item.attributes.displayName || item.attributes.name || 'Unnamed'
-
-            if (item.type === 'folders') {
-              queue.push({ id: item.id, path: `${folder.path}/${name}` })
-            } else if (name.toLowerCase().endsWith('.rvt')) {
-              totalFiles++
-              send({ type: 'file', name, id: item.id, path: folder.path })
-            }
-          }
-
-          nextUrl = response.links?.next?.href || null
-        }
-      } catch {
-        // Skip folders we can't access and continue traversal
-      }
+    const fetchFn = async (url: string) => {
+      const fullUrl = url.startsWith('http') ? url : `https://developer.api.autodesk.com${url}`
+      const response = await apsFetch<{
+        data: Array<{ type: string, id: string, attributes: { displayName?: string, name?: string, fileType?: string }, relationships?: { item?: { data?: { type: string, id: string } } } }>
+        included?: Array<{ type: string, id: string, attributes: { displayName?: string, name?: string }, relationships?: { parent?: { data?: { type: string, id: string } } } }>
+        links?: { next?: { href: string } }
+      }>(token, fullUrl)
 
       // Small delay to respect rate limits
       await new Promise(resolve => setTimeout(resolve, 50))
+
+      return response
     }
+
+    await searchRevitFiles(
+      fetchFn,
+      projectId as string,
+      topFolders,
+      (folder, searched) => {
+        send({ type: 'progress', folder, scanned: searched })
+      },
+      (file) => {
+        totalFiles++
+        send({ type: 'file', name: file.name, id: file.id, path: file.path })
+      }
+    )
 
     send({ type: 'done', total: totalFiles })
   } catch (error: unknown) {

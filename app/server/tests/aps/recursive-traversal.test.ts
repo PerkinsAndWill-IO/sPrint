@@ -1,99 +1,77 @@
 import { describe, it, expect } from 'vitest'
+import { searchRevitFiles } from '../../utils/aps-traversal'
 
-// Types matching APS JSON:API responses
-interface ApsItem {
-  id: string
+interface SearchVersion {
   type: string
-  attributes: { displayName?: string, name?: string }
+  id: string
+  attributes: { displayName?: string; name?: string; fileType?: string }
+  relationships?: { item?: { data?: { type: string; id: string } } }
 }
 
-interface ApsResponse {
-  data: ApsItem[]
+interface SearchIncluded {
+  type: string
+  id: string
+  attributes: { displayName?: string; name?: string }
+  relationships?: { parent?: { data?: { type: string; id: string } } }
+}
+
+interface SearchResponse {
+  data: SearchVersion[]
+  included?: SearchIncluded[]
   links?: { next?: { href: string } }
 }
 
-interface RevitFile {
-  id: string
-  name: string
-  path: string
-}
+const PROJECT_ID = 'b.project-123'
 
-// Extracted recursive traversal logic (mirrors server/api/aps/revit-files.get.ts)
-async function findRevitFiles(
-  fetchFn: (path: string) => Promise<ApsResponse>,
-  topFolders: Array<{ id: string, path: string }>
-): Promise<{ files: RevitFile[], foldersScanned: number }> {
-  const queue = [...topFolders]
-  const files: RevitFile[] = []
-  let foldersScanned = 0
-
-  while (queue.length > 0) {
-    const folder = queue.shift()!
-    foldersScanned++
-
-    let nextUrl: string | null = `/data/v1/projects/proj-1/folders/${folder.id}/contents`
-
-    while (nextUrl) {
-      const response = await fetchFn(nextUrl)
-
-      for (const item of response.data) {
-        const name = item.attributes.displayName || item.attributes.name || 'Unnamed'
-
-        if (item.type === 'folders') {
-          queue.push({ id: item.id, path: `${folder.path}/${name}` })
-        } else if (name.toLowerCase().endsWith('.rvt')) {
-          files.push({ id: item.id, name, path: folder.path })
-        }
+function makeVersion(id: string, name: string, itemLineageId?: string): SearchVersion {
+  return {
+    type: 'versions',
+    id: `urn:adsk.wipprod:fs.file:vf.${id}?version=1`,
+    attributes: { displayName: name, fileType: 'rvt' },
+    relationships: {
+      item: {
+        data: { type: 'items', id: itemLineageId || `urn:adsk.wipprod:dm.lineage:${id}` }
       }
-
-      nextUrl = response.links?.next?.href || null
     }
   }
+}
 
-  return { files, foldersScanned }
+function makeIncludedItem(lineageId: string, name: string, parentFolderId?: string): SearchIncluded {
+  return {
+    type: 'items',
+    id: lineageId,
+    attributes: { displayName: name },
+    relationships: parentFolderId
+      ? { parent: { data: { type: 'folders', id: parentFolderId } } }
+      : undefined
+  }
 }
 
 /*
-Mock folder structure:
-  Plans/
-    Architectural.rvt
-    Floor-Plan.pdf
-    Revisions/
-      Arch-v2.RVT
-      Notes.docx
-  Models/
-    Structural.rvt
-    MEP.rvt
-    Coordination/
-      Combined.nwc
-  Empty-Folder/
+  Mock search responses per folder:
+  - "Project Files" folder: returns 2 rvt files (Architectural.rvt, Structural.rvt)
+  - "Plans" folder: returns 1 rvt file (MEP.rvt)
+  - "Empty" folder: returns 0 results
 */
 
-function createMockFetch(): (path: string) => Promise<ApsResponse> {
-  const folderContents: Record<string, ApsResponse> = {
+function createMockSearchFetch(): (url: string) => Promise<SearchResponse> {
+  const responses: Record<string, SearchResponse> = {
+    'folder-project-files': {
+      data: [
+        makeVersion('arch', 'Architectural.rvt', 'urn:adsk.wipprod:dm.lineage:arch'),
+        makeVersion('struct', 'Structural.rvt', 'urn:adsk.wipprod:dm.lineage:struct')
+      ],
+      included: [
+        makeIncludedItem('urn:adsk.wipprod:dm.lineage:arch', 'Architectural.rvt', 'folder-sub-arch'),
+        makeIncludedItem('urn:adsk.wipprod:dm.lineage:struct', 'Structural.rvt', 'folder-sub-struct')
+      ]
+    },
     'folder-plans': {
       data: [
-        { id: 'item-arch', type: 'items', attributes: { displayName: 'Architectural.rvt' } },
-        { id: 'item-pdf', type: 'items', attributes: { displayName: 'Floor-Plan.pdf' } },
-        { id: 'folder-revisions', type: 'folders', attributes: { displayName: 'Revisions' } }
-      ]
-    },
-    'folder-revisions': {
-      data: [
-        { id: 'item-arch-v2', type: 'items', attributes: { displayName: 'Arch-v2.RVT' } },
-        { id: 'item-notes', type: 'items', attributes: { displayName: 'Notes.docx' } }
-      ]
-    },
-    'folder-models': {
-      data: [
-        { id: 'item-struct', type: 'items', attributes: { displayName: 'Structural.rvt' } },
-        { id: 'item-mep', type: 'items', attributes: { displayName: 'MEP.rvt' } },
-        { id: 'folder-coord', type: 'folders', attributes: { displayName: 'Coordination' } }
-      ]
-    },
-    'folder-coord': {
-      data: [
-        { id: 'item-nwc', type: 'items', attributes: { displayName: 'Combined.nwc' } }
+        makeVersion('mep', 'MEP.rvt', 'urn:adsk.wipprod:dm.lineage:mep')
+      ],
+      included: [
+        makeIncludedItem('urn:adsk.wipprod:dm.lineage:mep', 'MEP.rvt', 'folder-plans')
       ]
     },
     'folder-empty': {
@@ -101,175 +79,169 @@ function createMockFetch(): (path: string) => Promise<ApsResponse> {
     }
   }
 
-  return async (path: string) => {
-    // Extract folder ID from path
-    const match = path.match(/folders\/([^/]+)\/contents/)
+  return async (url: string) => {
+    // Extract folder ID from the search URL pattern:
+    // /data/v1/projects/{projectId}/folders/{folderId}/search?filter[fileType]=rvt
+    const match = url.match(/folders\/([^/]+)\/search/)
     const folderId = match?.[1] || ''
-    return folderContents[folderId] || { data: [] }
+    return responses[folderId] || { data: [] }
   }
 }
 
 const topFolders = [
+  { id: 'folder-project-files', path: 'Project Files' },
   { id: 'folder-plans', path: 'Plans' },
-  { id: 'folder-models', path: 'Models' },
-  { id: 'folder-empty', path: 'Empty-Folder' }
+  { id: 'folder-empty', path: 'Empty' }
 ]
 
-describe('recursive folder traversal', () => {
-  it('finds all .rvt files starting from a single top-level folder (including subfolders)', async () => {
-    const mockFetch = createMockFetch()
-    const result = await findRevitFiles(mockFetch, [{ id: 'folder-plans', path: 'Plans' }])
-    const rvtFiles = result.files.filter(f => f.name.toLowerCase().endsWith('.rvt'))
-    // Plans/ has Architectural.rvt, Plans/Revisions/ has Arch-v2.RVT
-    expect(rvtFiles).toHaveLength(2)
-    expect(rvtFiles.map(f => f.name).sort()).toEqual(['Arch-v2.RVT', 'Architectural.rvt'])
+describe('APS search-based .rvt file discovery', () => {
+  it('finds all .rvt files across multiple top folders', async () => {
+    const fetch = createMockSearchFetch()
+    const result = await searchRevitFiles(fetch, PROJECT_ID, topFolders)
+
+    expect(result.files).toHaveLength(3)
+    const names = result.files.map(f => f.name).sort()
+    expect(names).toEqual(['Architectural.rvt', 'MEP.rvt', 'Structural.rvt'])
   })
 
-  it('correctly traverses deeply nested folders (3+ levels)', async () => {
-    const mockFetch = createMockFetch()
-    const result = await findRevitFiles(mockFetch, topFolders)
-    // Should find Arch-v2.RVT in Plans/Revisions/
-    const archV2 = result.files.find(f => f.name === 'Arch-v2.RVT')
-    expect(archV2).toBeDefined()
-    expect(archV2!.path).toBe('Plans/Revisions')
+  it('returns item lineage IDs (not version IDs)', async () => {
+    const fetch = createMockSearchFetch()
+    const result = await searchRevitFiles(fetch, PROJECT_ID, topFolders)
+
+    const arch = result.files.find(f => f.name === 'Architectural.rvt')
+    expect(arch!.id).toBe('urn:adsk.wipprod:dm.lineage:arch')
   })
 
-  it('only returns .rvt files — ignores .dwg, .pdf, .nwc, .docx', async () => {
-    const mockFetch = createMockFetch()
-    const result = await findRevitFiles(mockFetch, topFolders)
-    for (const file of result.files) {
-      expect(file.name.toLowerCase().endsWith('.rvt')).toBe(true)
-    }
-    // Verify non-rvt files are excluded
-    const names = result.files.map(f => f.name)
-    expect(names).not.toContain('Floor-Plan.pdf')
-    expect(names).not.toContain('Notes.docx')
-    expect(names).not.toContain('Combined.nwc')
+  it('associates files with their top folder path', async () => {
+    const fetch = createMockSearchFetch()
+    const result = await searchRevitFiles(fetch, PROJECT_ID, topFolders)
+
+    const arch = result.files.find(f => f.name === 'Architectural.rvt')
+    expect(arch!.path).toBe('Project Files')
+
+    const mep = result.files.find(f => f.name === 'MEP.rvt')
+    expect(mep!.path).toBe('Plans')
   })
 
-  it('gracefully handles empty folders', async () => {
-    const mockFetch = createMockFetch()
-    const result = await findRevitFiles(mockFetch, [{ id: 'folder-empty', path: 'Empty-Folder' }])
+  it('handles empty search results', async () => {
+    const fetch = createMockSearchFetch()
+    const result = await searchRevitFiles(fetch, PROJECT_ID, [{ id: 'folder-empty', path: 'Empty' }])
+
     expect(result.files).toHaveLength(0)
-    expect(result.foldersScanned).toBe(1)
+    expect(result.foldersSearched).toBe(1)
   })
 
-  it('follows pagination links.next', async () => {
-    const page1: ApsResponse = {
-      data: [
-        { id: 'item-a', type: 'items', attributes: { displayName: 'PageOne.rvt' } }
-      ],
-      links: { next: { href: '/data/v1/projects/proj-1/folders/folder-paged/contents?page=2' } }
-    }
-    const page2: ApsResponse = {
-      data: [
-        { id: 'item-b', type: 'items', attributes: { displayName: 'PageTwo.rvt' } }
-      ]
-    }
+  it('tracks number of folders searched', async () => {
+    const fetch = createMockSearchFetch()
+    const result = await searchRevitFiles(fetch, PROJECT_ID, topFolders)
 
+    expect(result.foldersSearched).toBe(3)
+  })
+
+  it('calls onProgress for each top folder', async () => {
+    const fetch = createMockSearchFetch()
+    const progressCalls: Array<{ folder: string; searched: number }> = []
+
+    await searchRevitFiles(
+      fetch,
+      PROJECT_ID,
+      topFolders,
+      (folder, searched) => progressCalls.push({ folder, searched })
+    )
+
+    expect(progressCalls).toHaveLength(3)
+    expect(progressCalls[0]).toEqual({ folder: 'Project Files', searched: 1 })
+    expect(progressCalls[1]).toEqual({ folder: 'Plans', searched: 2 })
+    expect(progressCalls[2]).toEqual({ folder: 'Empty', searched: 3 })
+  })
+
+  it('calls onFile for each discovered file', async () => {
+    const fetch = createMockSearchFetch()
+    const fileCalls: Array<{ id: string; name: string; path: string }> = []
+
+    await searchRevitFiles(
+      fetch,
+      PROJECT_ID,
+      topFolders,
+      undefined,
+      (file) => fileCalls.push(file)
+    )
+
+    expect(fileCalls).toHaveLength(3)
+    expect(fileCalls.map(f => f.name).sort()).toEqual(['Architectural.rvt', 'MEP.rvt', 'Structural.rvt'])
+  })
+
+  it('follows pagination links', async () => {
     let callCount = 0
-    const pagedFetch = async (path: string): Promise<ApsResponse> => {
+    const pagedFetch = async (url: string): Promise<SearchResponse> => {
       callCount++
-      if (path.includes('page=2')) return page2
-      return page1
+      if (url.includes('page')) {
+        return {
+          data: [makeVersion('page2', 'Page2.rvt', 'urn:lineage:page2')]
+        }
+      }
+      return {
+        data: [makeVersion('page1', 'Page1.rvt', 'urn:lineage:page1')],
+        links: { next: { href: `https://developer.api.autodesk.com/data/v1/projects/${PROJECT_ID}/folders/f1/search?filter[fileType]=rvt&page[number]=1` } }
+      }
     }
 
-    const result = await findRevitFiles(pagedFetch, [{ id: 'folder-paged', path: 'Paged' }])
+    const result = await searchRevitFiles(pagedFetch, PROJECT_ID, [{ id: 'f1', path: 'Root' }])
+
     expect(result.files).toHaveLength(2)
-    expect(result.files[0].name).toBe('PageOne.rvt')
-    expect(result.files[1].name).toBe('PageTwo.rvt')
+    expect(result.files[0].name).toBe('Page1.rvt')
+    expect(result.files[1].name).toBe('Page2.rvt')
     expect(callCount).toBe(2)
   })
 
-  it('returns empty array when no .rvt files exist', async () => {
-    const noRvtFetch = async (): Promise<ApsResponse> => ({
-      data: [
-        { id: 'item-1', type: 'items', attributes: { displayName: 'Design.dwg' } },
-        { id: 'item-2', type: 'items', attributes: { displayName: 'Report.pdf' } }
-      ]
-    })
-    const result = await findRevitFiles(noRvtFetch, [{ id: 'folder-1', path: 'Root' }])
-    expect(result.files).toEqual([])
-  })
-
-  it('handles 100+ folders without stack overflow (BFS approach)', async () => {
-    // Create a wide folder tree with 150 folders
-    const wideFetch = async (path: string): Promise<ApsResponse> => {
-      const match = path.match(/folders\/([^/]+)\/contents/)
-      const folderId = match?.[1] || ''
-
-      // Only the root folder has sub-folders
-      if (folderId === 'root-folder') {
-        return {
-          data: Array.from({ length: 150 }, (_, i) => ({
-            id: `sub-folder-${i}`,
-            type: 'folders',
-            attributes: { displayName: `Subfolder-${i}` }
-          }))
-        }
-      }
-
-      // Each sub-folder has one .rvt file
-      return {
-        data: [{
-          id: `rvt-${folderId}`,
-          type: 'items',
-          attributes: { displayName: `Model-${folderId}.rvt` }
-        }]
-      }
+  it('constructs correct search URL with filter', async () => {
+    const urls: string[] = []
+    const captureFetch = async (url: string): Promise<SearchResponse> => {
+      urls.push(url)
+      return { data: [] }
     }
 
-    const result = await findRevitFiles(wideFetch, [{ id: 'root-folder', path: 'Root' }])
-    expect(result.files).toHaveLength(150)
-    expect(result.foldersScanned).toBe(151) // root + 150 sub-folders
+    await searchRevitFiles(captureFetch, PROJECT_ID, [{ id: 'folder-abc', path: 'Root' }])
+
+    expect(urls).toHaveLength(1)
+    expect(urls[0]).toBe(`/data/v1/projects/${PROJECT_ID}/folders/folder-abc/search?filter[fileType]=rvt`)
   })
 
-  it('case-insensitive .rvt detection — finds Model.RVT, model.rvt, MODEL.Rvt', async () => {
-    const caseFetch = async (): Promise<ApsResponse> => ({
-      data: [
-        { id: 'i1', type: 'items', attributes: { displayName: 'Model.RVT' } },
-        { id: 'i2', type: 'items', attributes: { displayName: 'model.rvt' } },
-        { id: 'i3', type: 'items', attributes: { displayName: 'MODEL.Rvt' } },
-        { id: 'i4', type: 'items', attributes: { displayName: 'design.RVT' } },
-        { id: 'i5', type: 'items', attributes: { displayName: 'notes.txt' } }
-      ]
+  it('falls back to version ID when item relationship is missing', async () => {
+    const noRelFetch = async (): Promise<SearchResponse> => ({
+      data: [{
+        type: 'versions',
+        id: 'urn:version:fallback',
+        attributes: { displayName: 'Fallback.rvt', fileType: 'rvt' }
+        // no relationships
+      }]
     })
 
-    const result = await findRevitFiles(caseFetch, [{ id: 'folder-case', path: 'Case' }])
-    expect(result.files).toHaveLength(4)
+    const result = await searchRevitFiles(noRelFetch, PROJECT_ID, [{ id: 'f1', path: 'Root' }])
+
+    expect(result.files[0].id).toBe('urn:version:fallback')
+    expect(result.files[0].name).toBe('Fallback.rvt')
   })
 
-  it('finds all expected .rvt files in the full mock tree', async () => {
-    const mockFetch = createMockFetch()
-    const result = await findRevitFiles(mockFetch, topFolders)
+  it('uses name attribute when displayName is missing', async () => {
+    const nameOnlyFetch = async (): Promise<SearchResponse> => ({
+      data: [{
+        type: 'versions',
+        id: 'urn:version:v1',
+        attributes: { name: 'NameOnly.rvt', fileType: 'rvt' },
+        relationships: { item: { data: { type: 'items', id: 'urn:lineage:v1' } } }
+      }]
+    })
 
-    const fileNames = result.files.map(f => f.name).sort()
-    expect(fileNames).toEqual([
-      'Arch-v2.RVT',
-      'Architectural.rvt',
-      'MEP.rvt',
-      'Structural.rvt'
-    ])
+    const result = await searchRevitFiles(nameOnlyFetch, PROJECT_ID, [{ id: 'f1', path: 'Root' }])
+    expect(result.files[0].name).toBe('NameOnly.rvt')
   })
 
-  it('tracks correct folder paths for discovered files', async () => {
-    const mockFetch = createMockFetch()
-    const result = await findRevitFiles(mockFetch, topFolders)
+  it('returns empty result when no top folders exist', async () => {
+    const fetch = createMockSearchFetch()
+    const result = await searchRevitFiles(fetch, PROJECT_ID, [])
 
-    const arch = result.files.find(f => f.name === 'Architectural.rvt')
-    expect(arch!.path).toBe('Plans')
-
-    const struct = result.files.find(f => f.name === 'Structural.rvt')
-    expect(struct!.path).toBe('Models')
-
-    const archV2 = result.files.find(f => f.name === 'Arch-v2.RVT')
-    expect(archV2!.path).toBe('Plans/Revisions')
-  })
-
-  it('scans the correct number of folders', async () => {
-    const mockFetch = createMockFetch()
-    const result = await findRevitFiles(mockFetch, topFolders)
-    // Plans, Plans/Revisions, Models, Models/Coordination, Empty-Folder = 5
-    expect(result.foldersScanned).toBe(5)
+    expect(result.files).toHaveLength(0)
+    expect(result.foldersSearched).toBe(0)
   })
 })

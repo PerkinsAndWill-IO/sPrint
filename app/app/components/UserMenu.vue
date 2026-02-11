@@ -23,10 +23,25 @@ const colors = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 
 const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
 
 const user = ref({
-  name: 'Benjamin Canac',
+  name: '',
   avatar: {
-    src: 'https://github.com/benjamincanac.png',
-    alt: 'Benjamin Canac'
+    src: '',
+    alt: ''
+  }
+})
+
+onMounted(async () => {
+  try {
+    const profile = await $fetch('/api/auth/me')
+    user.value = {
+      name: profile.name,
+      avatar: {
+        src: profile.avatar,
+        alt: profile.name
+      }
+    }
+  } catch {
+    // If not authenticated or fetch fails, keep empty state
   }
 })
 
