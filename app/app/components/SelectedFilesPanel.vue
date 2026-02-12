@@ -14,9 +14,16 @@ const accordionItems = computed<AccordionItem[]>(() =>
   selectedFilesList.value.map(file => ({
     label: file.name,
     icon: 'i-lucide-file-box',
-    value: file.itemId
+    value: file.itemId,
+    ui: { label: 'flex-1', trailingIcon: 'hidden' }
   }))
 )
+
+function derivativeCount(itemId: string): number {
+  const file = selectedFilesList.value.find(f => f.itemId === itemId)
+  if (!file) return 0
+  return file.derivatives.length
+}
 </script>
 
 <template>
@@ -31,16 +38,30 @@ const accordionItems = computed<AccordionItem[]>(() =>
     v-else
     type="multiple"
     :items="accordionItems"
-    :default-value="accordionItems.map(i => i.value!)"
   >
-    <template #trailing="{ item }">
-      <UButton
-        icon="i-lucide-x"
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        @click.stop="removeFile(item.value!)"
+    <template #trailing="{ item, open }">
+      <UBadge
+        v-if="derivativeCount(item.value!) > 0"
+        size="sm"
+        color="primary"
+        variant="subtle"
+      >
+        {{ derivativeCount(item.value!) }} PDFs
+      </UBadge>
+      <UIcon
+        name="i-lucide-chevron-down"
+        class="shrink-0 size-5 ms-auto transition-transform duration-200"
+        :class="{ 'rotate-180': open }"
       />
+      <UTooltip text="Remove file">
+        <UButton
+          icon="i-lucide-x"
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          @click.stop="removeFile(item.value!)"
+        />
+      </UTooltip>
     </template>
 
     <template #body="{ item }">

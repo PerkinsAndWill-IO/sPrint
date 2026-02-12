@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { selectedFilesList, totalSelectedCount } = useDerivatives()
+const { selectedFilesList, totalSelectedCount, clearAll } = useDerivatives()
 
 const mobileSelectionOpen = ref(false)
 
@@ -32,6 +32,17 @@ definePageMeta({
           <UBadge v-if="selectedFilesList.length > 0" size="sm" color="primary" variant="subtle" class="ml-2">
             {{ selectedFilesList.length }}
           </UBadge>
+        </template>
+        <template #trailing>
+          <UTooltip v-if="selectedFilesList.length > 0" text="Clear all">
+            <UButton
+              icon="i-lucide-trash-2"
+              size="xs"
+              variant="ghost"
+              color="error"
+              @click="clearAll"
+            />
+          </UTooltip>
         </template>
       </UDashboardNavbar>
     </template>

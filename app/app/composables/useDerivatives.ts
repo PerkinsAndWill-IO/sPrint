@@ -1,10 +1,14 @@
-import type { PdfDerivative, PdfViewSet, SelectedFileState } from '~/types/derivatives'
+import type { ExportOptions, PdfDerivative, PdfViewSet, SelectedFileState } from '~/types/derivatives'
 
 // Module-scope shared state — all callers of useDerivatives() share the same refs
 const selectedFiles = reactive(new Map<string, SelectedFileState>())
 const exporting = ref(false)
 const exportError = ref<string | null>(null)
 const downloadComplete = ref(false)
+const exportOptions = reactive<ExportOptions>({
+  mergePdfs: false,
+  zipOutput: true
+})
 
 export function useDerivatives() {
   const selectedFilesList = computed(() => Array.from(selectedFiles.values()))
@@ -138,7 +142,10 @@ export function useDerivatives() {
       const response = await fetch('/api/aps/export-derivatives', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ files: filesToExport })
+        body: JSON.stringify({
+          files: filesToExport,
+          options: { mergePdfs: exportOptions.mergePdfs, zipOutput: exportOptions.zipOutput }
+        })
       })
       if (response.status === 401) {
         await $fetch('/api/auth/logout')
@@ -152,7 +159,8 @@ export function useDerivatives() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'derivatives.zip'
+      const isPdf = response.headers.get('Content-Type')?.includes('application/pdf')
+      a.download = isPdf ? 'derivatives.pdf' : 'derivatives.zip'
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -188,6 +196,7 @@ export function useDerivatives() {
     toggleViewSet,
     selectAllForFile,
     deselectAllForFile,
+    exportOptions,
     exportSelected,
     clearAll
   }

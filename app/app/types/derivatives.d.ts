@@ -62,6 +62,11 @@ export interface MultiFileExportRequest {
   files: { urn: string; derivatives: string[]; name?: string }[]
 }
 
+export interface ExportOptions {
+  mergePdfs: boolean
+  zipOutput: boolean
+}
+
 export interface ExportResult {
   url: string
 }

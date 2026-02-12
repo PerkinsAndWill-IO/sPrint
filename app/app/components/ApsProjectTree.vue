@@ -16,12 +16,61 @@ const {
   addManualHub
 } = useApsProjects()
 
-const { isFileSelected, toggleFile } = useDerivatives()
+const { isFileSelected, toggleFile, removeFile } = useDerivatives()
 
 const selectedProject = ref<ApsTreeItem | null>(null)
 const error = ref<string | null>(null)
 const manualHubId = ref('')
 const showManualInput = ref(false)
+const treeFilter = ref('')
+const resultsDrawerOpen = ref(false)
+const resultsFilter = ref('')
+
+const filteredResults = computed(() => {
+  if (!resultsFilter.value) return searchResults.value
+  const q = resultsFilter.value.toLowerCase()
+  return searchResults.value.filter(f =>
+    f.name.toLowerCase().includes(q) || f.path?.toLowerCase().includes(q)
+  )
+})
+
+// Auto-open drawer when search finishes with results
+watch(searchingProject, (newVal, oldVal) => {
+  if (oldVal && !newVal && searchResults.value.length > 0) {
+    resultsDrawerOpen.value = true
+  }
+})
+
+function filterTree(nodes: ApsTreeItem[], query: string): ApsTreeItem[] {
+  if (!query) return nodes
+  const q = query.toLowerCase()
+  return nodes.reduce<ApsTreeItem[]>((acc, node) => {
+    const labelMatch = node.label?.toLowerCase().includes(q)
+    const filteredChildren = node.children ? filterTree(node.children, query) : []
+    if (labelMatch || filteredChildren.length > 0) {
+      acc.push({ ...node, children: filteredChildren.length > 0 ? filteredChildren : node.children })
+    }
+    return acc
+  }, [])
+}
+
+const filteredItems = computed(() => filterTree(items.value, treeFilter.value))
+
+function selectAllResults() {
+  const project = selectedProject.value
+  if (!project?._projectId) return
+  for (const file of searchResults.value) {
+    if (!isFileSelected(file.id)) {
+      toggleFile(file.id, project._projectId, file.name)
+    }
+  }
+}
+
+function deselectAllResults() {
+  for (const file of searchResults.value) {
+    if (isFileSelected(file.id)) removeFile(file.id)
+  }
+}
 
 function onAddManualHub() {
   if (!manualHubId.value.trim()) return
@@ -127,9 +176,30 @@ function onSearchResultClick(fileId: string, fileName: string) {
         Loading hubs...
       </div>
 
+      <UInput
+        v-if="!loading && items.length > 0"
+        v-model="treeFilter"
+        icon="i-lucide-search"
+        placeholder="Filter..."
+        size="sm"
+        variant="subtle"
+      >
+        <template v-if="treeFilter" #trailing>
+          <UTooltip text="Clear filter">
+            <UButton
+              icon="i-lucide-x"
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              @click="treeFilter = ''"
+            />
+          </UTooltip>
+        </template>
+      </UInput>
+
       <UTree
-        v-else
-        :items="items"
+        v-if="!loading"
+        :items="filteredItems"
         :get-key="(item: TreeItem) => (item as ApsTreeItem)._apsId"
         expanded-icon="i-lucide-folder-open"
         collapsed-icon="i-lucide-folder"
@@ -180,45 +250,74 @@ function onSearchResultClick(fileId: string, fileName: string) {
       </UTree>
     </div>
 
-    <!-- Pinned search results section -->
-    <div
-      v-if="searchingProject || searchResults.length > 0"
-      class="shrink-0 border-t border-default"
-    >
+    <!-- Collapsible search results -->
+    <div v-if="searchResults.length > 0" class="shrink-0 border-t border-default">
       <div class="flex items-center justify-between px-4 py-2">
-        <div v-if="searchingProject" class="flex items-center gap-2 text-sm text-muted">
-          <UIcon name="i-lucide-loader" class="animate-spin" />
-          {{ searchProgress }}
-        </div>
-        <template v-else>
-          <h3 class="text-sm font-medium">
-            Discovered .rvt files ({{ searchResults.length }})
-          </h3>
+        <UButton
+          icon="i-lucide-file-search"
+          size="xs"
+          variant="ghost"
+          color="neutral"
+          :label="`${filteredResults.length}/${searchResults.length} .rvt`"
+          :trailing-icon="resultsDrawerOpen ? 'i-lucide-chevron-down' : 'i-lucide-chevron-up'"
+          @click="resultsDrawerOpen = !resultsDrawerOpen"
+        />
+        <div class="flex items-center gap-1">
           <span v-if="searchProgress" class="text-xs text-muted">{{ searchProgress }}</span>
-        </template>
+          <UTooltip text="Select all">
+            <UButton size="xs" variant="ghost" icon="i-lucide-check-check" @click="selectAllResults" />
+          </UTooltip>
+          <UTooltip text="Deselect all">
+            <UButton size="xs" variant="ghost" icon="i-lucide-x" @click="deselectAllResults" />
+          </UTooltip>
+        </div>
       </div>
 
-      <div v-if="searchResults.length > 0" class="max-h-[35vh] overflow-y-auto px-4 pb-3">
-        <div class="flex flex-col gap-1">
-          <div
-            v-for="file in searchResults"
-            :key="file.id"
-            class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-elevated"
-            @click="onSearchResultClick(file.id, file.name)"
-          >
-            <UIcon name="i-lucide-file-box" class="text-muted shrink-0" />
-            <span class="truncate">{{ file.name }}</span>
-            <span class="text-muted truncate text-xs">{{ file.path }}</span>
-            <div class="ml-auto" @click.stop>
-              <UCheckbox
-                :model-value="isFileSelected(file.id)"
-                size="sm"
-                @update:model-value="onSearchResultClick(file.id, file.name)"
-              />
+      <UCollapsible v-model:open="resultsDrawerOpen">
+        <template #content>
+          <div class="px-4 pb-1">
+            <UInput
+              class="w-full"
+              v-model="resultsFilter"
+              icon="i-lucide-search"
+              placeholder="Filter results..."
+              size="xs"
+              variant="subtle"
+            >
+              <template v-if="resultsFilter" #trailing>
+                <UButton
+                  icon="i-lucide-x"
+                  size="xs"
+                  variant="ghost"
+                  color="neutral"
+                  @click="resultsFilter = ''"
+                />
+              </template>
+            </UInput>
+          </div>
+          <div class="max-h-[35vh] overflow-y-auto px-4 pb-3 pt-1">
+            <div class="flex flex-col gap-1">
+              <div
+                v-for="file in filteredResults"
+                :key="file.id"
+                class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-elevated"
+                @click="onSearchResultClick(file.id, file.name)"
+              >
+                <UIcon name="i-lucide-file-box" class="text-muted shrink-0" />
+                <span class="truncate">{{ file.name }}</span>
+                <span class="text-muted truncate text-xs">{{ file.path }}</span>
+                <div class="ml-auto" @click.stop>
+                  <UCheckbox
+                    :model-value="isFileSelected(file.id)"
+                    size="sm"
+                    @update:model-value="onSearchResultClick(file.id, file.name)"
+                  />
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </template>
+      </UCollapsible>
     </div>
   </div>
 </template>

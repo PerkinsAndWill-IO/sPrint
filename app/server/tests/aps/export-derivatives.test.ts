@@ -75,6 +75,61 @@ describe('export-derivatives endpoint', () => {
     })
   })
 
+  describe('export options parsing', () => {
+    it('defaults to mergePdfs false and zipOutput true when options missing', () => {
+      const result = parseExportBody({ urn: 'test', derivatives: ['a'] })
+      expect('options' in result).toBe(true)
+      if ('options' in result) {
+        expect(result.options).toEqual({ mergePdfs: false, zipOutput: true })
+      }
+    })
+
+    it('passes through options when provided', () => {
+      const result = parseExportBody({
+        urn: 'test',
+        derivatives: ['a'],
+        options: { mergePdfs: true, zipOutput: false }
+      })
+      expect('options' in result).toBe(true)
+      if ('options' in result) {
+        expect(result.options).toEqual({ mergePdfs: true, zipOutput: false })
+      }
+    })
+
+    it('handles partial options with only mergePdfs', () => {
+      const result = parseExportBody({
+        urn: 'test',
+        derivatives: ['a'],
+        options: { mergePdfs: true }
+      })
+      if ('options' in result) {
+        expect(result.options).toEqual({ mergePdfs: true, zipOutput: true })
+      }
+    })
+
+    it('handles partial options with only zipOutput', () => {
+      const result = parseExportBody({
+        urn: 'test',
+        derivatives: ['a'],
+        options: { zipOutput: false }
+      })
+      if ('options' in result) {
+        expect(result.options).toEqual({ mergePdfs: false, zipOutput: false })
+      }
+    })
+
+    it('includes options in multi-file format', () => {
+      const result = parseExportBody({
+        files: [{ urn: 'urn1', derivatives: ['d1'] }],
+        options: { mergePdfs: true, zipOutput: false }
+      })
+      expect('options' in result).toBe(true)
+      if ('options' in result) {
+        expect(result.options).toEqual({ mergePdfs: true, zipOutput: false })
+      }
+    })
+  })
+
   describe('sanitizeFolderName', () => {
     it('replaces special characters with underscores', () => {
       expect(sanitizeFolderName('file<>:"/\\|?*name')).toBe('file_________name')

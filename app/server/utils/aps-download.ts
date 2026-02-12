@@ -91,13 +91,24 @@ interface ExportBody {
   urn?: string
   derivatives?: string[]
   files?: FileGroup[]
+  options?: { mergePdfs?: boolean, zipOutput?: boolean }
+}
+
+export interface ParsedExportOptions {
+  mergePdfs: boolean
+  zipOutput: boolean
 }
 
 export function sanitizeFolderName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_').trim() || 'unknown'
 }
 
-export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[] } | { error: string } {
+export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], options: ParsedExportOptions } | { error: string } {
+  const options: ParsedExportOptions = {
+    mergePdfs: body.options?.mergePdfs ?? false,
+    zipOutput: body.options?.zipOutput ?? true
+  }
+
   if (body.files && Array.isArray(body.files)) {
     if (body.files.length === 0) return { error: 'files must be a non-empty array' }
     for (const group of body.files) {
@@ -106,12 +117,12 @@ export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[] } |
         return { error: 'Each file must have a non-empty derivatives array' }
       }
     }
-    return { fileGroups: body.files }
+    return { fileGroups: body.files, options }
   }
 
   if (!body.urn) return { error: 'urn is required' }
   if (!body.derivatives || !Array.isArray(body.derivatives) || body.derivatives.length === 0) {
     return { error: 'derivatives must be a non-empty array' }
   }
-  return { fileGroups: [{ urn: body.urn, derivatives: body.derivatives }] }
+  return { fileGroups: [{ urn: body.urn, derivatives: body.derivatives }], options }
 }
