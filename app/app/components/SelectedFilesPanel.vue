@@ -19,10 +19,8 @@ const accordionItems = computed<AccordionItem[]>(() =>
   }))
 )
 
-function derivativeCount(itemId: string): number {
-  const file = selectedFilesList.value.find(f => f.itemId === itemId)
-  if (!file) return 0
-  return file.derivatives.length
+function fileState(itemId: string) {
+  return selectedFilesList.value.find(f => f.itemId === itemId)
 }
 </script>
 
@@ -40,13 +38,18 @@ function derivativeCount(itemId: string): number {
     :items="accordionItems"
   >
     <template #trailing="{ item, open }">
+      <UIcon
+        v-if="fileState(item.value!)?.loading"
+        name="i-lucide-loader"
+        class="animate-spin size-4 text-muted"
+      />
       <UBadge
-        v-if="derivativeCount(item.value!) > 0"
+        v-else-if="fileState(item.value!)?.derivatives.length"
         size="sm"
         color="primary"
         variant="subtle"
       >
-        {{ derivativeCount(item.value!) }} PDFs
+        {{ fileState(item.value!)!.derivatives.length }} PDFs
       </UBadge>
       <UIcon
         name="i-lucide-chevron-down"
