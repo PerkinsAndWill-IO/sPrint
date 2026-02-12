@@ -63,8 +63,9 @@ export interface MultiFileExportRequest {
 }
 
 export interface ExportOptions {
-  mergePdfs: boolean
-  zipOutput: boolean
+  mergeScope: 'none' | 'per-model' | 'all'
+  zip: boolean
+  modelFolders: boolean
 }
 
 export interface ExportResult {

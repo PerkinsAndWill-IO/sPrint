@@ -7,8 +7,28 @@ const {
   toggleDerivative,
   toggleViewSet,
   selectAllForFile,
-  deselectAllForFile
+  deselectAllForFile,
+  getPreviewUrl
 } = useDerivatives()
+
+const previewOpen = ref(false)
+const previewUrl = ref('')
+const previewTitle = ref('')
+
+function handlePreview(itemId: string, guid: string) {
+  const file = selectedFilesList.value.find(f => f.itemId === itemId)
+  if (!file) return
+
+  const derivative = file.derivatives.find(d => d.guid === guid)
+  if (!derivative) return
+
+  const url = getPreviewUrl(itemId, derivative.urn)
+  if (!url) return
+
+  previewUrl.value = url
+  previewTitle.value = derivative.name
+  previewOpen.value = true
+}
 
 const accordionItems = computed<AccordionItem[]>(() =>
   selectedFilesList.value.map(file => ({
@@ -95,9 +115,16 @@ function fileState(itemId: string) {
             @toggle-view-set="toggleViewSet(file.itemId, $event)"
             @select-all="selectAllForFile(file.itemId)"
             @deselect-all="deselectAllForFile(file.itemId)"
+            @preview="handlePreview(file.itemId, $event)"
           />
         </div>
       </div>
     </template>
   </UAccordion>
+
+  <PdfViewerModal
+    v-model:open="previewOpen"
+    :pdf-url="previewUrl"
+    :title="previewTitle"
+  />
 </template>

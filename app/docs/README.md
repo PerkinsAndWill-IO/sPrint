@@ -1,27 +1,34 @@
-# Clarity Parity Documentation
+# sPrint
 
-> "The software worked well, we took a tedious task off our employees' plates, and we spent a lot of time getting to know IMAGINIT," said Matt Petermann. "It was a very successful pilot."
+> Lightweight automation layer for exporting PDF derivatives from Revit models published in BIM 360 / ACC.
 
-## Overview
+## What's Built (v1)
 
-This documentation covers the comparison between **Clarity** and **sPrint** systems, focusing on PDF generation and printing capabilities within architectural and engineering contexts (Revit, ACC/B360).
+- **Autodesk OAuth 2.0 authentication** — Login/logout flow with token refresh via APS (Autodesk Platform Services)
+- **Hub / Project / Folder browser** — Hierarchical tree navigation of BIM 360 and ACC project structures
+- **Revit file search** — Server-sent events (SSE) streaming search with real-time progress
+- **PDF derivative fetching** — Reads model manifests to extract available PDF sheet derivatives
+- **Sheet selection with view set grouping** — Toggle individual sheets or entire view sets at once
+- **Multi-model PDF export** — Merge into a single PDF or download as ZIP, supporting multiple Revit files simultaneously
+- **PDF Document Viewer** — Fullscreen in-browser preview of individual PDF sheets before exporting (proxied via server endpoint)
+- **Responsive dashboard** — Two-panel desktop layout with slideover on mobile
+- **Theme customization** — Dark mode default, Nuxt UI theming
 
-## Documentation Structure
+## Architecture
 
-- **[Clarity Parity Overview](./clarity-parity.md)** - Main comparison document with parity table
-- **[PDF Export (Sheets → PDFs)](./pdf-export.md)** - Section 1: Sheet-driven PDF generation
-- **[Bundled / Collated PDFs](./bundled-collated-pdfs.md)** - Section 2: PDF bundling capabilities
-- **[Scheduled / Automated Printing](./scheduled-automated-printing.md)** - Section 3: Automation and scheduling
-- **[Print Configuration & Fidelity](./print-config-fidelity.md)** - Section 4: Print settings and output quality
-- **[Guaranteed Output Across Project Types](./guaranteed-output.md)** - Section 5: Edge cases and reliability
-- **[Needed Features](./needed-features.md)** - Feature requests and improvements
+- **Framework**: Nuxt 4 + Vue 3 (Composition API)
+- **UI**: Nuxt UI v4 (Tailwind CSS)
+- **Server**: Nitro server routes proxying Autodesk Platform Services APIs
+- **PDF processing**: `pdf-lib` for merging, `archiver` for ZIP output
+- **Auth**: Cookie-based APS OAuth 2.0 token storage
 
-## Quick Reference
+## TODO / Roadmap (sPrint 2.0)
 
-Clarity provides five distinct things (for drawings):
-
-1. Sheet-driven PDF generation
-2. Bundled / collated PDFs
-3. Scheduled / repeatable execution
-4. Print configuration control
-5. Guaranteed fidelity (what Revit sees is what prints)
+- Standalone app packaging
+- Analytics and telemetry
+- Proactive workflow suggestions
+- Markups support (known limitation — requires tokens)
+- Collabed Models support (known limitation)
+- Scheduled / automated printing
+- Print configuration control
+- Character recognition improvements

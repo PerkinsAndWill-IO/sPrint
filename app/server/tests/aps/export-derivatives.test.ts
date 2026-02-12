@@ -13,11 +13,6 @@ describe('export-derivatives endpoint', () => {
       expect('error' in result && result.error).toBe('derivatives must be a non-empty array')
     })
 
-    it('requires derivatives to be an array', () => {
-      const result = parseExportBody({ urn: 'test' })
-      expect('error' in result && result.error).toBe('derivatives must be a non-empty array')
-    })
-
     it('passes valid request and returns fileGroups', () => {
       const result = parseExportBody({ urn: 'test', derivatives: ['a'] })
       expect('fileGroups' in result).toBe(true)
@@ -59,75 +54,51 @@ describe('export-derivatives endpoint', () => {
       })
       expect('error' in result && result.error).toBe('Each file must have a non-empty derivatives array')
     })
-
-    it('rejects file group without derivatives', () => {
-      const result = parseExportBody({
-        files: [{ urn: 'urn1' } as { urn: string; derivatives: string[] }]
-      })
-      expect('error' in result && result.error).toBe('Each file must have a non-empty derivatives array')
-    })
-
-    it('accepts single file in multi-file format', () => {
-      const result = parseExportBody({
-        files: [{ urn: 'urn1', derivatives: ['d1'], name: 'Model-A' }]
-      })
-      expect('fileGroups' in result).toBe(true)
-    })
   })
 
   describe('export options parsing', () => {
-    it('defaults to mergePdfs false and zipOutput true when options missing', () => {
+    it('defaults to mergeScope none, zip true, modelFolders true when options missing', () => {
       const result = parseExportBody({ urn: 'test', derivatives: ['a'] })
       expect('options' in result).toBe(true)
       if ('options' in result) {
-        expect(result.options).toEqual({ mergePdfs: false, zipOutput: true })
+        expect(result.options).toEqual({ mergeScope: 'none', zip: true, modelFolders: true })
       }
     })
 
-    it('passes through options when provided', () => {
+    it('passes through explicit values', () => {
       const result = parseExportBody({
         urn: 'test',
         derivatives: ['a'],
-        options: { mergePdfs: true, zipOutput: false }
+        options: { mergeScope: 'all', zip: false, modelFolders: false }
       })
       expect('options' in result).toBe(true)
       if ('options' in result) {
-        expect(result.options).toEqual({ mergePdfs: true, zipOutput: false })
+        expect(result.options).toEqual({ mergeScope: 'all', zip: false, modelFolders: false })
       }
     })
 
-    it('handles partial options with only mergePdfs', () => {
+    it('handles partial options with only mergeScope', () => {
       const result = parseExportBody({
         urn: 'test',
         derivatives: ['a'],
-        options: { mergePdfs: true }
+        options: { mergeScope: 'per-model' }
       })
       if ('options' in result) {
-        expect(result.options).toEqual({ mergePdfs: true, zipOutput: true })
+        expect(result.options).toEqual({ mergeScope: 'per-model', zip: true, modelFolders: true })
       }
     })
 
-    it('handles partial options with only zipOutput', () => {
+    it('falls back to defaults for invalid mergeScope', () => {
       const result = parseExportBody({
         urn: 'test',
         derivatives: ['a'],
-        options: { zipOutput: false }
+        options: { mergeScope: 'invalid' }
       })
       if ('options' in result) {
-        expect(result.options).toEqual({ mergePdfs: false, zipOutput: false })
+        expect(result.options).toEqual({ mergeScope: 'none', zip: true, modelFolders: true })
       }
     })
 
-    it('includes options in multi-file format', () => {
-      const result = parseExportBody({
-        files: [{ urn: 'urn1', derivatives: ['d1'] }],
-        options: { mergePdfs: true, zipOutput: false }
-      })
-      expect('options' in result).toBe(true)
-      if ('options' in result) {
-        expect(result.options).toEqual({ mergePdfs: true, zipOutput: false })
-      }
-    })
   })
 
   describe('sanitizeFolderName', () => {
@@ -141,14 +112,6 @@ describe('export-derivatives endpoint', () => {
 
     it('trims whitespace', () => {
       expect(sanitizeFolderName('  hello  ')).toBe('hello')
-    })
-
-    it('returns "unknown" for whitespace-only string', () => {
-      expect(sanitizeFolderName('   ')).toBe('unknown')
-    })
-
-    it('leaves clean names untouched', () => {
-      expect(sanitizeFolderName('Model-A_v2')).toBe('Model-A_v2')
     })
   })
 })

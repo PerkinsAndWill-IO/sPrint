@@ -20,16 +20,27 @@ const {
         />
 
         <template #content>
-          <div class="flex flex-col gap-2 p-3">
-            <USwitch
-              v-model="exportOptions.mergePdfs"
+          <div class="flex flex-col gap-3 p-3">
+            <URadioGroup
+              v-model="exportOptions.mergeScope"
+              legend="Merge"
+              orientation="horizontal"
               size="xs"
-              label="Merge into one PDF"
+              :items="[
+                { label: 'None', value: 'none' },
+                { label: 'Per model', value: 'per-model' },
+                { label: 'All', value: 'all' }
+              ]"
             />
             <USwitch
-              v-model="exportOptions.zipOutput"
-              size="xs"
+              v-model="exportOptions.zip"
               label="Zip output"
+              size="xs"
+            />
+            <USwitch
+              v-model="exportOptions.modelFolders"
+              label="Folders per model"
+              size="xs"
             />
           </div>
         </template>

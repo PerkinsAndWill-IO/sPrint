@@ -6,8 +6,9 @@ const exporting = ref(false)
 const exportError = ref<string | null>(null)
 const downloadComplete = ref(false)
 const exportOptions = reactive<ExportOptions>({
-  mergePdfs: false,
-  zipOutput: true
+  mergeScope: 'none',
+  zip: true,
+  modelFolders: true
 })
 
 export function useDerivatives() {
@@ -144,7 +145,7 @@ export function useDerivatives() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           files: filesToExport,
-          options: { mergePdfs: exportOptions.mergePdfs, zipOutput: exportOptions.zipOutput }
+          options: { mergeScope: exportOptions.mergeScope, zip: exportOptions.zip, modelFolders: exportOptions.modelFolders }
         })
       })
       if (response.status === 401) {
@@ -173,6 +174,12 @@ export function useDerivatives() {
     }
   }
 
+  function getPreviewUrl(itemId: string, derivativeUrn: string): string | null {
+    const entry = selectedFiles.get(itemId)
+    if (!entry?.urn) return null
+    return `/api/aps/derivative-pdf?urn=${encodeURIComponent(entry.urn)}&derivativeUrn=${encodeURIComponent(derivativeUrn)}`
+  }
+
   function clearAll() {
     selectedFiles.clear()
     exporting.value = false
@@ -198,6 +205,7 @@ export function useDerivatives() {
     deselectAllForFile,
     exportOptions,
     exportSelected,
+    getPreviewUrl,
     clearAll
   }
 }

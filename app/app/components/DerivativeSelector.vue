@@ -11,6 +11,7 @@ const emit = defineEmits<{
   toggleViewSet: [name: string]
   selectAll: []
   deselectAll: []
+  preview: [guid: string]
 }>()
 
 const search = ref('')
@@ -74,14 +75,25 @@ const selectedCount = computed(() =>
         <div
           v-for="d in filteredDerivatives"
           :key="d.guid"
-          class="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-elevated"
+          class="group flex items-center gap-2 rounded px-1 py-0.5 hover:bg-elevated"
         >
           <UCheckbox
             :model-value="d.active"
             :label="d.name"
             size="sm"
+            class="flex-1 min-w-0"
             @update:model-value="emit('toggleDerivative', d.guid)"
           />
+          <UTooltip text="Preview PDF">
+            <UButton
+              icon="i-lucide-eye"
+              size="xs"
+              color="neutral"
+              variant="ghost"
+              class="opacity-0 group-hover:opacity-100 shrink-0"
+              @click.stop="emit('preview', d.guid)"
+            />
+          </UTooltip>
         </div>
         <p v-if="filteredDerivatives.length === 0" class="text-sm text-muted py-2">
           No sheets found

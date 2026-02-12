@@ -87,16 +87,19 @@ interface FileGroup {
   name?: string
 }
 
+const MERGE_SCOPES = ['none', 'per-model', 'all'] as const
+
 interface ExportBody {
   urn?: string
   derivatives?: string[]
   files?: FileGroup[]
-  options?: { mergePdfs?: boolean, zipOutput?: boolean }
+  options?: { mergeScope?: string, zip?: boolean, modelFolders?: boolean }
 }
 
 export interface ParsedExportOptions {
-  mergePdfs: boolean
-  zipOutput: boolean
+  mergeScope: 'none' | 'per-model' | 'all'
+  zip: boolean
+  modelFolders: boolean
 }
 
 export function sanitizeFolderName(name: string): string {
@@ -104,9 +107,11 @@ export function sanitizeFolderName(name: string): string {
 }
 
 export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], options: ParsedExportOptions } | { error: string } {
+  const rawMerge = body.options?.mergeScope
   const options: ParsedExportOptions = {
-    mergePdfs: body.options?.mergePdfs ?? false,
-    zipOutput: body.options?.zipOutput ?? true
+    mergeScope: (MERGE_SCOPES as readonly string[]).includes(rawMerge as string) ? rawMerge as ParsedExportOptions['mergeScope'] : 'none',
+    zip: body.options?.zip !== undefined ? Boolean(body.options.zip) : true,
+    modelFolders: body.options?.modelFolders !== undefined ? Boolean(body.options.modelFolders) : true
   }
 
   if (body.files && Array.isArray(body.files)) {
