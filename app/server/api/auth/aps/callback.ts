@@ -93,6 +93,14 @@ export default eventHandler(async (event) => {
       maxAge: 60 * 60 * 24 * 30 // 30 days
     })
 
+    // Flag for client-side login tracking
+    setCookie(event, 'aps_just_logged_in', '1', {
+      httpOnly: false,
+      secure: true,
+      sameSite: 'lax',
+      maxAge: 60
+    })
+
     // Redirect to dashboard after successful authentication
     return sendRedirect(event, '/dashboard', 302)
   } catch (err: any) {

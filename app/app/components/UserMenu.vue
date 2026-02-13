@@ -11,8 +11,12 @@ const appConfig = useAppConfig()
 
 async function handleLogout() {
   try {
+    const { $posthog } = useNuxtApp()
+    const posthog = $posthog()
+    posthog?.capture('user_logged_out')
+    posthog?.reset()
+
     await $fetch('/api/auth/logout')
-    // Redirect to landing page after logout
     await router.push('/')
   } catch (error) {
     console.error('Logout failed:', error)
@@ -38,6 +42,23 @@ onMounted(async () => {
       avatar: {
         src: profile.avatar,
         alt: profile.name
+      }
+    }
+
+    // Identify user in PostHog
+    const { $posthog } = useNuxtApp()
+    const posthog = $posthog()
+    if (posthog) {
+      posthog.identify(profile.email, {
+        name: profile.name,
+        email: profile.email
+      })
+
+      // Track login event only on fresh login (cookie set by OAuth callback)
+      const cookie = useCookie('aps_just_logged_in')
+      if (cookie.value) {
+        posthog.capture('user_logged_in', { email: profile.email })
+        cookie.value = null
       }
     }
   } catch {

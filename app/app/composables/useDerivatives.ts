@@ -139,6 +139,16 @@ export function useDerivatives() {
     exportError.value = null
     downloadComplete.value = false
 
+    // Track export started
+    const { $posthog } = useNuxtApp()
+    const posthog = $posthog?.()
+    posthog?.capture('export_started', {
+      file_count: filesToExport.length,
+      total_derivatives: filesToExport.reduce((sum, f) => sum + f.derivatives.length, 0),
+      merge_scope: exportOptions.mergeScope,
+      zip: exportOptions.zip
+    })
+
     try {
       const response = await fetch('/api/aps/export-derivatives', {
         method: 'POST',
@@ -167,8 +177,16 @@ export function useDerivatives() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
       downloadComplete.value = true
+      posthog?.capture('export_completed', {
+        file_count: filesToExport.length,
+        total_derivatives: filesToExport.reduce((sum, f) => sum + f.derivatives.length, 0),
+        format: isPdf ? 'pdf' : 'zip'
+      })
     } catch (e: unknown) {
       exportError.value = e instanceof Error ? e.message : 'Export failed'
+      posthog?.capture('export_failed', {
+        error: e instanceof Error ? e.message : 'Export failed'
+      })
     } finally {
       exporting.value = false
     }

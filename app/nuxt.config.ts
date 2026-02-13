@@ -40,7 +40,8 @@ export default defineNuxtConfig({
     apsRedirectUri: process.env.APS_REDIRECT_URI || 'http://localhost:3000/api/auth/aps/callback',
     // Public keys (exposed to client-side)
     public: {
-      // Add any public config here if needed
+      posthogPublicKey: 'phc_AWDkyEtrP3HBzkBVi3BRjFHoE6SuSy0jhUBdunJ2CFH',
+      posthogHost: 'https://us.i.posthog.com'
     }
   }
 })
