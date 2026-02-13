@@ -50,6 +50,17 @@ Printing PDF's from Autodesk Cloud (BIM360/ACC) used to be a time consuming task
 
 <br/><br/>
 
+## App (Nuxt) — Local Setup
+
+Important: run `postinstall` (Nuxt prepare) after install. This generates `.nuxt` types and avoids dev server issues.
+
+1. `cd ./app`
+2. `pnpm install`
+3. `pnpm run postinstall` (runs `nuxt prepare`)
+4. `pnpm run dev --port 3000`
+
+<br/><br/>
+
 ## Plugin Architecture 🏛️
 
 The plugin consist of 2 parts:
