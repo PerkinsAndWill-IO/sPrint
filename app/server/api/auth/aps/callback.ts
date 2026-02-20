@@ -68,13 +68,11 @@ export default eventHandler(async (event) => {
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json().catch(() => ({}))
-      console.error('[APS Callback] Token exchange failed:', {
-        status: tokenResponse.status,
-        error: errorData,
-        redirectUri,
-        clientId: clientId?.substring(0, 8) + '...',
-        codeLength: code?.length
-      })
+      // If the code was already consumed (duplicate request), redirect to dashboard
+      // in case the parallel request succeeded and set the cookies
+      if (errorData.error === 'invalid_grant') {
+        return sendRedirect(event, '/dashboard', 302)
+      }
       throw createError({
         statusCode: tokenResponse.status,
         message: `Token exchange failed: ${errorData.error_description || errorData.error || 'Unknown error'}`
