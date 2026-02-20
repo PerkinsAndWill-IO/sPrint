@@ -50,7 +50,7 @@ export default eventHandler(async (event) => {
 
   // Exchange authorization code for tokens
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
-  
+
   const tokenData = new URLSearchParams()
   tokenData.append('grant_type', 'authorization_code')
   tokenData.append('code', code)

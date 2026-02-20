@@ -5,7 +5,7 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'urn and derivativeUrn are required' })
   }
 
-  const token = getApsAccessToken(event)
+  const token = await getApsAccessToken(event)
 
   const signedInfo = await getSignedDerivativeUrl(
     urn as string,

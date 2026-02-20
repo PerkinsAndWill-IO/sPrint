@@ -8,7 +8,7 @@ interface ApsHubsRawResponse {
 }
 
 export default eventHandler(async (event) => {
-  const token = getApsAccessToken(event)
+  const token = await getApsAccessToken(event)
 
   const response = await apsFetch<ApsHubsRawResponse>(token, '/project/v1/hubs')
 

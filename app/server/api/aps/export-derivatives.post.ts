@@ -17,7 +17,7 @@ export default eventHandler(async (event) => {
   }
   const { fileGroups, options } = result
 
-  const rawToken = getApsAccessToken(event)
+  const rawToken = await getApsAccessToken(event)
 
   // Download all derivatives from all file groups in parallel
   const allDownloads = await Promise.all(

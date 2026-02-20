@@ -19,7 +19,7 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'projectId and itemId are required' })
   }
 
-  const token = getApsAccessToken(event)
+  const token = await getApsAccessToken(event)
 
   const response = await apsFetch<ApsTipResponse>(
     token,

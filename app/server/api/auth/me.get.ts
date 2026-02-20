@@ -7,7 +7,7 @@ interface ApsUserProfile {
 }
 
 export default eventHandler(async (event) => {
-  const token = getApsAccessToken(event)
+  const token = await getApsAccessToken(event)
   const profile = await apsFetch<ApsUserProfile>(token, '/userprofile/v1/users/@me')
 
   return {

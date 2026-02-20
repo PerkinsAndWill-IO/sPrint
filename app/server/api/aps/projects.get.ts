@@ -7,7 +7,7 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'hubId is required' })
   }
 
-  const token = getApsAccessToken(event)
+  const token = await getApsAccessToken(event)
 
   const response = await apsFetch<{ data: Array<{ id: string, attributes: { name: string } }> }>(
     token,

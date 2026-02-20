@@ -8,7 +8,7 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'urn is required' })
   }
 
-  const token = getApsAccessToken(event)
+  const token = await getApsAccessToken(event)
 
   const manifest = await apsFetch<ApsManifest>(
     token,

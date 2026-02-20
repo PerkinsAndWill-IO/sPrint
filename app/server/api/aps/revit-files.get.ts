@@ -7,7 +7,7 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'hubId and projectId are required' })
   }
 
-  const token = getApsAccessToken(event)
+  const token = await getApsAccessToken(event)
 
   setResponseHeader(event, 'Content-Type', 'text/event-stream')
   setResponseHeader(event, 'Cache-Control', 'no-cache')
