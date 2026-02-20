@@ -68,6 +68,13 @@ export default eventHandler(async (event) => {
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.json().catch(() => ({}))
+      console.error('[APS Callback] Token exchange failed:', {
+        status: tokenResponse.status,
+        error: errorData,
+        redirectUri,
+        clientId: clientId?.substring(0, 8) + '...',
+        codeLength: code?.length
+      })
       throw createError({
         statusCode: tokenResponse.status,
         message: `Token exchange failed: ${errorData.error_description || errorData.error || 'Unknown error'}`
