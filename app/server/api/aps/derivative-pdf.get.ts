@@ -1,25 +1,10 @@
+// Compatibility alias — redirects to the generic derivative endpoint
 export default eventHandler(async (event) => {
-  const { urn, derivativeUrn, region } = getQuery(event)
-
-  if (!urn || !derivativeUrn) {
-    throw createError({ statusCode: 400, statusMessage: 'urn and derivativeUrn are required' })
-  }
-
-  const token = await getApsAccessToken(event)
-
-  const signedInfo = await getSignedDerivativeUrl(
-    urn as string,
-    derivativeUrn as string,
-    token,
-    region as string | undefined
-  )
-
-  const file = await downloadDerivative(signedInfo, derivativeUrn as string)
-
-  setResponseHeaders(event, {
-    'Content-Type': 'application/pdf',
-    'Content-Disposition': `inline; filename="${file.name}"`
-  })
-
-  return file.data
+  const query = getQuery(event)
+  const params = new URLSearchParams()
+  if (query.urn) params.set('urn', query.urn as string)
+  if (query.derivativeUrn) params.set('derivativeUrn', query.derivativeUrn as string)
+  if (query.region) params.set('region', query.region as string)
+  params.set('mimeType', 'application/pdf')
+  return sendRedirect(event, `/api/aps/derivative?${params.toString()}`, 301)
 })

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const {
+  selectedFilesList,
   totalSelectedCount,
   exporting,
   exportError,
@@ -7,6 +8,24 @@ const {
   exportOptions,
   exportSelected
 } = useDerivatives()
+
+const selectionIsPdfOnly = computed(() => {
+  for (const file of selectedFilesList.value) {
+    for (const d of file.derivatives) {
+      if (d.active && d.format !== 'pdf') return false
+    }
+  }
+  return true
+})
+
+const exportLabel = computed(() => {
+  if (exporting.value) return 'Exporting...'
+  const count = totalSelectedCount.value
+  if (selectionIsPdfOnly.value) {
+    return `Export ${count} PDF${count === 1 ? '' : 's'}`
+  }
+  return `Export ${count} file${count === 1 ? '' : 's'}`
+})
 </script>
 
 <template>
@@ -21,17 +40,22 @@ const {
 
         <template #content>
           <div class="flex flex-col gap-3 p-3">
-            <URadioGroup
-              v-model="exportOptions.mergeScope"
-              legend="Merge"
-              orientation="horizontal"
-              size="xs"
-              :items="[
-                { label: 'None', value: 'none' },
-                { label: 'Per model', value: 'per-model' },
-                { label: 'All', value: 'all' }
-              ]"
-            />
+            <template v-if="selectionIsPdfOnly">
+              <URadioGroup
+                v-model="exportOptions.mergeScope"
+                legend="Merge"
+                orientation="horizontal"
+                size="xs"
+                :items="[
+                  { label: 'None', value: 'none' },
+                  { label: 'Per model', value: 'per-model' },
+                  { label: 'All', value: 'all' }
+                ]"
+              />
+            </template>
+            <p v-else class="text-xs text-muted">
+              Merge is only available for PDF selections
+            </p>
             <USwitch
               v-model="exportOptions.zip"
               label="Zip output"
@@ -47,7 +71,7 @@ const {
       </UPopover>
 
       <UButton
-        :label="exporting ? 'Exporting...' : `Export ${totalSelectedCount} PDF${totalSelectedCount === 1 ? '' : 's'}`"
+        :label="exportLabel"
         :loading="exporting"
         :disabled="totalSelectedCount === 0 || exporting"
         icon="i-lucide-download"

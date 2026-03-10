@@ -27,18 +27,27 @@ export interface ApsManifest {
   derivatives: ApsManifestDerivative[]
 }
 
-export interface PdfDerivative {
+export type DerivativeFormat = 'pdf' | 'dwg' | 'dwf' | 'ifc' | 'thumbnail' | 'aec' | 'sdb' | 'svf' | 'other'
+
+export interface Derivative {
   guid: string
   name: string
   urn: string
+  format: DerivativeFormat
+  mimeType: string
   viewSets: string[]
   active: boolean
 }
 
-export interface PdfViewSet {
+export interface ViewSet {
   name: string
   active: boolean
 }
+
+/** @deprecated Use Derivative instead */
+export type PdfDerivative = Derivative
+/** @deprecated Use ViewSet instead */
+export type PdfViewSet = ViewSet
 
 export interface SelectedFileState {
   itemId: string
@@ -48,8 +57,8 @@ export interface SelectedFileState {
   region?: string
   loading: boolean
   error: string | null
-  derivatives: PdfDerivative[]
-  viewSets: PdfViewSet[]
+  derivatives: Derivative[]
+  viewSets: ViewSet[]
   revitVersion: number | null
   revitVersionSupported: boolean
 }

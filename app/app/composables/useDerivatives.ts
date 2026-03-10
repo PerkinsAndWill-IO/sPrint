@@ -1,4 +1,4 @@
-import type { ExportOptions, PdfDerivative, PdfViewSet, SelectedFileState } from '~/types/derivatives'
+import type { ExportOptions, Derivative, ViewSet, SelectedFileState } from '~/types/derivatives'
 
 // Module-scope shared state — all callers of useDerivatives() share the same refs
 const selectedFiles = reactive(new Map<string, SelectedFileState>())
@@ -111,18 +111,22 @@ export function useDerivatives() {
     )
   }
 
-  function selectAllForFile(itemId: string) {
+  function selectAllForFile(itemId: string, guids?: string[]) {
     const entry = selectedFiles.get(itemId)
     if (!entry) return
-    entry.derivatives = entry.derivatives.map(d => ({ ...d, active: true }))
-    entry.viewSets = entry.viewSets.map(v => ({ ...v, active: true }))
+    entry.derivatives = entry.derivatives.map(d =>
+      (!guids || guids.includes(d.guid)) ? { ...d, active: true } : d
+    )
+    if (!guids) entry.viewSets = entry.viewSets.map(v => ({ ...v, active: true }))
   }
 
-  function deselectAllForFile(itemId: string) {
+  function deselectAllForFile(itemId: string, guids?: string[]) {
     const entry = selectedFiles.get(itemId)
     if (!entry) return
-    entry.derivatives = entry.derivatives.map(d => ({ ...d, active: false }))
-    entry.viewSets = entry.viewSets.map(v => ({ ...v, active: false }))
+    entry.derivatives = entry.derivatives.map(d =>
+      (!guids || guids.includes(d.guid)) ? { ...d, active: false } : d
+    )
+    if (!guids) entry.viewSets = entry.viewSets.map(v => ({ ...v, active: false }))
   }
 
   async function exportSelected() {
@@ -175,8 +179,19 @@ export function useDerivatives() {
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      const isPdf = response.headers.get('Content-Type')?.includes('application/pdf')
-      a.download = isPdf ? 'derivatives.pdf' : 'derivatives.zip'
+      const contentType = response.headers.get('Content-Type') || ''
+      let filename = 'derivatives.zip'
+      if (contentType.includes('application/pdf')) {
+        filename = 'derivatives.pdf'
+      } else if (contentType.includes('application/zip')) {
+        filename = 'derivatives.zip'
+      } else {
+        // Extract filename from Content-Disposition if available
+        const disposition = response.headers.get('Content-Disposition') || ''
+        const match = disposition.match(/filename="?([^";\s]+)"?/)
+        if (match) filename = match[1]!
+      }
+      a.download = filename
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -185,7 +200,7 @@ export function useDerivatives() {
       posthog?.capture('export_completed', {
         file_count: filesToExport.length,
         total_derivatives: filesToExport.reduce((sum, f) => sum + f.derivatives.length, 0),
-        format: isPdf ? 'pdf' : 'zip'
+        format: contentType.includes('application/pdf') ? 'pdf' : 'zip'
       })
     } catch (e: unknown) {
       exportError.value = e instanceof Error ? e.message : 'Export failed'
@@ -197,10 +212,11 @@ export function useDerivatives() {
     }
   }
 
-  function getPreviewUrl(itemId: string, derivativeUrn: string): string | null {
+  function getPreviewUrl(itemId: string, derivativeUrn: string, mimeType?: string): string | null {
     const entry = selectedFiles.get(itemId)
     if (!entry?.urn) return null
-    let url = `/api/aps/derivative-pdf?urn=${encodeURIComponent(entry.urn)}&derivativeUrn=${encodeURIComponent(derivativeUrn)}`
+    let url = `/api/aps/derivative?urn=${encodeURIComponent(entry.urn)}&derivativeUrn=${encodeURIComponent(derivativeUrn)}`
+    if (mimeType) url += `&mimeType=${encodeURIComponent(mimeType)}`
     if (entry.region) url += `&region=${encodeURIComponent(entry.region)}`
     return url
   }

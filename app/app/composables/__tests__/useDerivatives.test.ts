@@ -5,9 +5,9 @@ import type { PdfDerivative, PdfViewSet, SelectedFileState } from '~/types/deriv
 
 function createTestDerivatives(): PdfDerivative[] {
   return [
-    { guid: 'g1', name: 'A001.pdf', urn: 'urn:pdf/A001.pdf', viewSets: ['Set A'], active: true },
-    { guid: 'g2', name: 'A002.pdf', urn: 'urn:pdf/A002.pdf', viewSets: ['Set A', 'Set B'], active: true },
-    { guid: 'g3', name: 'S001.pdf', urn: 'urn:pdf/S001.pdf', viewSets: ['Set B'], active: true }
+    { guid: 'g1', name: 'A001.pdf', urn: 'urn:pdf/A001.pdf', format: 'pdf', mimeType: 'application/pdf', viewSets: ['Set A'], active: true },
+    { guid: 'g2', name: 'A002.pdf', urn: 'urn:pdf/A002.pdf', format: 'pdf', mimeType: 'application/pdf', viewSets: ['Set A', 'Set B'], active: true },
+    { guid: 'g3', name: 'S001.pdf', urn: 'urn:pdf/S001.pdf', format: 'pdf', mimeType: 'application/pdf', viewSets: ['Set B'], active: true }
   ]
 }
 
@@ -146,8 +146,8 @@ describe('useDerivatives state logic', () => {
         itemId: 'item2',
         name: 'Model-B.rvt',
         derivatives: [
-          { guid: 'g4', name: 'B001.pdf', urn: 'urn:pdf/B001.pdf', viewSets: ['Set C'], active: true },
-          { guid: 'g5', name: 'B002.pdf', urn: 'urn:pdf/B002.pdf', viewSets: ['Set C'], active: false }
+          { guid: 'g4', name: 'B001.pdf', urn: 'urn:pdf/B001.pdf', format: 'pdf', mimeType: 'application/pdf', viewSets: ['Set C'], active: true },
+          { guid: 'g5', name: 'B002.pdf', urn: 'urn:pdf/B002.pdf', format: 'pdf', mimeType: 'application/pdf', viewSets: ['Set C'], active: false }
         ]
       })
 

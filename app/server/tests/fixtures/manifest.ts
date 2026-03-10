@@ -70,6 +70,27 @@ export const mockPdfChildNoUrn: ApsManifestChild = {
   ]
 }
 
+export const mockAecChild: ApsManifestChild = {
+  guid: 'guid-aec',
+  name: 'AECModelData',
+  role: 'Autodesk.AEC.ModelData',
+  urn: 'urn:adsk.viewing:fs.file:output/AECModelData.json'
+}
+
+export const mockSdbChild: ApsManifestChild = {
+  guid: 'guid-sdb',
+  name: 'model.sdb',
+  role: 'Autodesk.CloudPlatform.PropertyDatabase',
+  urn: 'urn:adsk.viewing:fs.file:output/properties/model.sdb'
+}
+
+export const mockSvfChild: ApsManifestChild = {
+  guid: 'guid-svf',
+  name: 'model.svf',
+  role: 'graphics',
+  urn: 'urn:adsk.viewing:fs.file:output/0/model.svf'
+}
+
 export const mockDerivativeWithPdfs: ApsManifestDerivative = {
   name: 'TestModel.rvt',
   children: [mockPdfChild1, mockPdfChild2, mock3dChild, mockThumbnailChild],

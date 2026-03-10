@@ -33,7 +33,20 @@ export function buildCloudFrontUrl(url: string, policy: string, keyPairId: strin
 
 export function deriveFileName(derivativeUrn: string): string {
   const parts = derivativeUrn.split('/')
-  return parts[parts.length - 1] || 'unknown.pdf'
+  return parts[parts.length - 1] || 'unknown'
+}
+
+export function inferMimeType(urn: string): string {
+  const lower = urn.toLowerCase()
+  if (lower.endsWith('.pdf')) return 'application/pdf'
+  if (lower.endsWith('.json')) return 'application/json'
+  if (lower.endsWith('.dwg')) return 'application/acad'
+  if (lower.endsWith('.dwf') || lower.endsWith('.dwfx')) return 'model/vnd.dwf'
+  if (lower.endsWith('.ifc')) return 'application/x-step'
+  if (lower.endsWith('.png')) return 'image/png'
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
+  if (lower.endsWith('.svg')) return 'image/svg+xml'
+  return 'application/octet-stream'
 }
 
 export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string, token: string, region?: string): Promise<SignedCookieInfo> {

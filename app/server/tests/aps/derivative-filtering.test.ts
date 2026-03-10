@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   filterPdfDerivatives,
+  filterDerivatives,
+  resolveFormat,
   extractPdfViewSets,
   groupDerivativesByViewSet,
   checkRevitVersion
@@ -11,6 +13,9 @@ import {
   mock3dChild,
   mockThumbnailChild,
   mockPdfChildNoUrn,
+  mockAecChild,
+  mockSdbChild,
+  mockSvfChild,
   mockDerivativeWithPdfs,
   mockDerivativeNoPdfs,
   mockDerivativeOldRevit,
@@ -120,6 +125,84 @@ describe('groupDerivativesByViewSet', () => {
   it('returns empty Map for empty input', () => {
     const groups = groupDerivativesByViewSet([])
     expect(groups.size).toBe(0)
+  })
+})
+
+describe('resolveFormat', () => {
+  it('resolves pdf-page role as pdf', () => {
+    expect(resolveFormat({ guid: 'x', name: 'x', role: 'pdf-page', urn: 'urn:x/A001.pdf' })).toBe('pdf')
+  })
+
+  it('resolves .pdf URN as pdf', () => {
+    expect(resolveFormat({ guid: 'x', name: 'x', role: '2d', urn: 'urn:x/output.pdf' })).toBe('pdf')
+  })
+
+  it('resolves thumbnail role', () => {
+    expect(resolveFormat(mockThumbnailChild)).toBe('thumbnail')
+  })
+
+  it('resolves AECModelData.json as aec', () => {
+    expect(resolveFormat(mockAecChild)).toBe('aec')
+  })
+
+  it('resolves model.sdb as sdb', () => {
+    expect(resolveFormat(mockSdbChild)).toBe('sdb')
+  })
+
+  it('resolves .svf as svf', () => {
+    expect(resolveFormat(mockSvfChild)).toBe('svf')
+  })
+
+  it('resolves .dwg as dwg', () => {
+    expect(resolveFormat({ guid: 'x', name: 'x', role: 'x', urn: 'urn:x/output.dwg' })).toBe('dwg')
+  })
+
+  it('resolves .dwf as dwf', () => {
+    expect(resolveFormat({ guid: 'x', name: 'x', role: 'x', urn: 'urn:x/output.dwf' })).toBe('dwf')
+  })
+
+  it('resolves .ifc as ifc', () => {
+    expect(resolveFormat({ guid: 'x', name: 'x', role: 'x', urn: 'urn:x/output.ifc' })).toBe('ifc')
+  })
+
+  it('resolves unknown extension as other', () => {
+    expect(resolveFormat({ guid: 'x', name: 'x', role: 'x', urn: 'urn:x/output.xyz' })).toBe('other')
+  })
+})
+
+describe('filterDerivatives (all formats)', () => {
+  it('extracts all derivative types from mixed children', () => {
+    const result = filterDerivatives([mockPdfChild1, mockThumbnailChild, mockAecChild, mockSdbChild])
+    expect(result).toHaveLength(4)
+    expect(result.map(d => d.format)).toEqual(['pdf', 'thumbnail', 'aec', 'sdb'])
+  })
+
+  it('sets only PDFs as active by default', () => {
+    const result = filterDerivatives([mockPdfChild1, mockThumbnailChild, mockAecChild])
+    const pdf = result.find(d => d.format === 'pdf')
+    const thumb = result.find(d => d.format === 'thumbnail')
+    const aec = result.find(d => d.format === 'aec')
+    expect(pdf!.active).toBe(true)
+    expect(thumb!.active).toBe(false)
+    expect(aec!.active).toBe(false)
+  })
+
+  it('filters by specific formats', () => {
+    const result = filterDerivatives([mockPdfChild1, mockThumbnailChild, mockAecChild], ['aec', 'thumbnail'])
+    expect(result).toHaveLength(2)
+    expect(result.map(d => d.format)).toEqual(['thumbnail', 'aec'])
+  })
+
+  it('assigns correct mimeType for aec', () => {
+    const result = filterDerivatives([mockAecChild])
+    expect(result[0].mimeType).toBe('application/json')
+  })
+
+  it('detects svf from nested children', () => {
+    const result = filterDerivatives([mock3dChild])
+    const svf = result.find(d => d.format === 'svf')
+    expect(svf).toBeDefined()
+    expect(svf!.name).toBe('model.svf')
   })
 })
 

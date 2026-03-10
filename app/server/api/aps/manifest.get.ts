@@ -1,5 +1,5 @@
 import type { ApsManifest } from '~/types/derivatives'
-import { filterPdfDerivatives, extractPdfViewSets, checkRevitVersion } from '../../utils/derivatives'
+import { filterDerivatives, extractViewSets, checkRevitVersion } from '../../utils/derivatives'
 
 export default eventHandler(async (event) => {
   const { urn, region } = getQuery(event)
@@ -26,8 +26,8 @@ export default eventHandler(async (event) => {
     }
   }
 
-  const derivatives = filterPdfDerivatives(firstDerivative.children)
-  const viewSets = extractPdfViewSets(derivatives)
+  const derivatives = filterDerivatives(firstDerivative.children)
+  const viewSets = extractViewSets(derivatives)
   const { supported: revitVersionSupported, version: revitVersion } = checkRevitVersion(firstDerivative)
 
   return {

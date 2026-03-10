@@ -68,7 +68,7 @@ describe('aps-download utilities', () => {
     })
 
     it('returns fallback for empty URN', () => {
-      expect(deriveFileName('')).toBe('unknown.pdf')
+      expect(deriveFileName('')).toBe('unknown')
     })
   })
 })

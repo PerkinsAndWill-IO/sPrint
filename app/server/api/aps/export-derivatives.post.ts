@@ -1,6 +1,6 @@
 import archiver from 'archiver'
 import { PassThrough } from 'node:stream'
-import { parseExportBody, sanitizeFolderName } from '../../utils/aps-download'
+import { parseExportBody, sanitizeFolderName, inferMimeType } from '../../utils/aps-download'
 import { mergePdfBuffers } from '../../utils/pdf-merge'
 
 interface DerivativeFile {
@@ -26,8 +26,21 @@ export default eventHandler(async (event) => {
     fileGroups.map(group => downloadAllDerivatives(group.urn, group.derivatives, rawToken, region))
   )
 
+  // --- Partition helper: split files into PDFs and non-PDFs ---
+  function partitionByPdf(files: DerivativeFile[]): { pdfs: DerivativeFile[], others: DerivativeFile[] } {
+    const pdfs: DerivativeFile[] = []
+    const others: DerivativeFile[] = []
+    for (const f of files) {
+      if (inferMimeType(f.name) === 'application/pdf') {
+        pdfs.push(f)
+      } else {
+        others.push(f)
+      }
+    }
+    return { pdfs, others }
+  }
+
   // --- Merge phase ---
-  // Produces a list of groups, each with a name and files
   interface OutputGroup {
     name: string
     files: DerivativeFile[]
@@ -36,20 +49,32 @@ export default eventHandler(async (event) => {
   let outputGroups: OutputGroup[]
 
   if (options.mergeScope === 'all') {
-    const allBuffers = allDownloads.flat()
-    if (allBuffers.length === 0) {
+    const allFiles = allDownloads.flat()
+    if (allFiles.length === 0) {
       throw createError({ statusCode: 400, statusMessage: 'No derivatives to export' })
     }
-    const merged = await mergePdfBuffers(allBuffers.map(f => f.data))
-    outputGroups = [{ name: 'merged', files: [{ name: 'merged.pdf', data: merged }] }]
+    const { pdfs, others } = partitionByPdf(allFiles)
+    const mergedFiles: DerivativeFile[] = []
+    if (pdfs.length > 0) {
+      const merged = await mergePdfBuffers(pdfs.map(f => f.data))
+      mergedFiles.push({ name: 'merged.pdf', data: merged })
+    }
+    mergedFiles.push(...others)
+    outputGroups = [{ name: 'merged', files: mergedFiles }]
   } else if (options.mergeScope === 'per-model') {
     outputGroups = await Promise.all(
       fileGroups.map(async (group, i) => {
         const files = allDownloads[i]!
         const groupName = sanitizeFolderName(group.name || `file-${i + 1}`)
         if (files.length === 0) return { name: groupName, files: [] as DerivativeFile[] }
-        const merged = await mergePdfBuffers(files.map(f => f.data))
-        return { name: groupName, files: [{ name: `${groupName}.pdf`, data: merged }] }
+        const { pdfs, others } = partitionByPdf(files)
+        const resultFiles: DerivativeFile[] = []
+        if (pdfs.length > 0) {
+          const merged = await mergePdfBuffers(pdfs.map(f => f.data))
+          resultFiles.push({ name: `${groupName}.pdf`, data: merged })
+        }
+        resultFiles.push(...others)
+        return { name: groupName, files: resultFiles }
       })
     )
   } else {
@@ -69,26 +94,43 @@ export default eventHandler(async (event) => {
   // Total file count across all groups
   const totalFiles = outputGroups.reduce((sum, g) => sum + g.files.length, 0)
 
+  // Check if all output files are PDFs
+  const allPdf = outputGroups.every(g => g.files.every(f => inferMimeType(f.name) === 'application/pdf'))
+
   // --- Package phase ---
   if (!options.zip) {
-    // Raw PDF — force merge if multiple files
-    let singleFile: DerivativeFile
-    if (totalFiles === 1) {
-      singleFile = outputGroups[0]!.files[0]!
-    } else {
-      const allBuffers = outputGroups.flatMap(g => g.files.map(f => f.data))
-      const merged = await mergePdfBuffers(allBuffers)
-      singleFile = { name: 'merged.pdf', data: merged }
+    if (allPdf) {
+      // Raw PDF — force merge if multiple files
+      let singleFile: DerivativeFile
+      if (totalFiles === 1) {
+        singleFile = outputGroups[0]!.files[0]!
+      } else {
+        const allBuffers = outputGroups.flatMap(g => g.files.map(f => f.data))
+        const merged = await mergePdfBuffers(allBuffers)
+        singleFile = { name: 'merged.pdf', data: merged }
+      }
+
+      setResponseHeaders(event, {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'attachment; filename="derivatives.pdf"'
+      })
+      return singleFile.data
     }
 
-    setResponseHeaders(event, {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename="derivatives.pdf"'
-    })
-    return singleFile.data
+    // Mixed content with zip disabled but multiple non-mergeable files — auto-force zip
+    if (totalFiles === 1) {
+      const file = outputGroups[0]!.files[0]!
+      const mimeType = inferMimeType(file.name)
+      setResponseHeaders(event, {
+        'Content-Type': mimeType,
+        'Content-Disposition': `attachment; filename="${file.name}"`
+      })
+      return file.data
+    }
+    // Fall through to zip for multiple mixed files
   }
 
-  // zip: true — single archive
+  // zip: true (or forced for mixed content)
   setResponseHeaders(event, {
     'Content-Type': 'application/zip',
     'Content-Disposition': 'attachment; filename="derivatives.zip"'
