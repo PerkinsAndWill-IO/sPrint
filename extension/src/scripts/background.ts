@@ -2,6 +2,15 @@ import { PortMessage, PortName, PortResponse } from "../constants/port";
 import { exportDerivatives } from "../services/aws";
 import { Derivative, Platform } from "../types";
 
+const redirectToSprintV2 = true;
+
+if (redirectToSprintV2) {
+  chrome.action.setPopup({ popup: "" });
+  chrome.action.onClicked.addListener(() => {
+    chrome.tabs.create({ url: "https://sprint.pwlabs.dev/" });
+  });
+}
+
 interface APSTabInfo {
   tabId: number;
   urn: string;
