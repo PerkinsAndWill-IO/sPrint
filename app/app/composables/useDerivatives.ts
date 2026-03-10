@@ -23,7 +23,7 @@ export function useDerivatives() {
 
   const hasSelections = computed(() => totalSelectedCount.value > 0)
 
-  async function addFile(itemId: string, projectId: string, name: string) {
+  async function addFile(itemId: string, projectId: string, name: string, region?: string) {
     if (selectedFiles.has(itemId)) return
 
     selectedFiles.set(itemId, {
@@ -31,6 +31,7 @@ export function useDerivatives() {
       projectId,
       name,
       urn: '',
+      region,
       loading: true,
       error: null,
       derivatives: [],
@@ -50,7 +51,7 @@ export function useDerivatives() {
       entry.name = itemResult.name || name
 
       const manifestResult = await $fetch('/api/aps/manifest', {
-        params: { urn: itemResult.urn }
+        params: { urn: itemResult.urn, region }
       })
 
       entry.derivatives = manifestResult.derivatives
@@ -82,11 +83,11 @@ export function useDerivatives() {
     return selectedFiles.has(itemId)
   }
 
-  function toggleFile(itemId: string, projectId: string, name: string) {
+  function toggleFile(itemId: string, projectId: string, name: string, region?: string) {
     if (selectedFiles.has(itemId)) {
       removeFile(itemId)
     } else {
-      addFile(itemId, projectId, name)
+      addFile(itemId, projectId, name, region)
     }
   }
 
@@ -150,11 +151,15 @@ export function useDerivatives() {
     })
 
     try {
+      const regions = selectedFilesList.value.map(f => f.region).filter(Boolean)
+      const exportRegion = regions.length > 0 ? regions[0] : undefined
+
       const response = await fetch('/api/aps/export-derivatives', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           files: filesToExport,
+          region: exportRegion,
           options: { mergeScope: exportOptions.mergeScope, zip: exportOptions.zip, modelFolders: exportOptions.modelFolders }
         })
       })
@@ -195,7 +200,9 @@ export function useDerivatives() {
   function getPreviewUrl(itemId: string, derivativeUrn: string): string | null {
     const entry = selectedFiles.get(itemId)
     if (!entry?.urn) return null
-    return `/api/aps/derivative-pdf?urn=${encodeURIComponent(entry.urn)}&derivativeUrn=${encodeURIComponent(derivativeUrn)}`
+    let url = `/api/aps/derivative-pdf?urn=${encodeURIComponent(entry.urn)}&derivativeUrn=${encodeURIComponent(derivativeUrn)}`
+    if (entry.region) url += `&region=${encodeURIComponent(entry.region)}`
+    return url
   }
 
   function clearAll() {

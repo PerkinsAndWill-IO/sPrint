@@ -2,7 +2,7 @@ import type { ApsManifest } from '~/types/derivatives'
 import { filterPdfDerivatives, extractPdfViewSets, checkRevitVersion } from '../../utils/derivatives'
 
 export default eventHandler(async (event) => {
-  const { urn } = getQuery(event)
+  const { urn, region } = getQuery(event)
 
   if (!urn) {
     throw createError({ statusCode: 400, statusMessage: 'urn is required' })
@@ -12,7 +12,7 @@ export default eventHandler(async (event) => {
 
   const manifest = await apsFetch<ApsManifest>(
     token,
-    `/modelderivative/v2/designdata/${urn}/manifest`
+    modelDerivativePath(`/modelderivative/v2/designdata/${urn}/manifest`, region as string | undefined)
   )
 
   const firstDerivative = manifest.derivatives[0]

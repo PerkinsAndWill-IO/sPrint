@@ -61,7 +61,7 @@ function selectAllResults() {
   if (!project?._projectId) return
   for (const file of searchResults.value) {
     if (!isFileSelected(file.id)) {
-      toggleFile(file.id, project._projectId, file.name)
+      toggleFile(file.id, project._projectId, file.name, project._region)
     }
   }
 }
@@ -105,7 +105,7 @@ function onSelect(_e: unknown, item: TreeItem) {
     const itemId = getItemId(apsItem)
     const projectId = apsItem._projectId
     if (!projectId) return
-    toggleFile(itemId, projectId, apsItem.label || '')
+    toggleFile(itemId, projectId, apsItem.label || '', apsItem._region)
   }
 }
 
@@ -118,7 +118,7 @@ function onSearchRevitFiles(project: ApsTreeItem) {
 function onSearchResultClick(fileId: string, fileName: string) {
   const project = selectedProject.value
   if (!project?._projectId) return
-  toggleFile(fileId, project._projectId, fileName)
+  toggleFile(fileId, project._projectId, fileName, project._region)
 }
 </script>
 
@@ -241,7 +241,8 @@ function onSearchResultClick(fileId: string, fileName: string) {
                 @update:model-value="toggleFile(
                   getItemId(item as ApsTreeItem),
                   (item as ApsTreeItem)._projectId || '',
-                  (item as ApsTreeItem).label || ''
+                  (item as ApsTreeItem).label || '',
+                  (item as ApsTreeItem)._region
                 )"
               />
             </div>

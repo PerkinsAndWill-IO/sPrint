@@ -45,6 +45,7 @@ export function useApsProjects() {
         _apsType: 'hub',
         _apsId: `hub-${hub.id}`,
         _hubId: hub.id,
+        _region: hub.region,
         children: [makeLoadingPlaceholder(`hub-${hub.id}`)]
       }))
     } catch (error) {
@@ -67,6 +68,7 @@ export function useApsProjects() {
       _apsId: `project-${project.id}`,
       _hubId: hubId,
       _projectId: project.id,
+      _region: item._region,
       children: [makeLoadingPlaceholder(`project-${project.id}`)]
     }))
 
@@ -86,6 +88,7 @@ export function useApsProjects() {
       _apsId: `folder-${folder.id}`,
       _hubId: hubId,
       _projectId: projectId,
+      _region: item._region,
       children: [makeLoadingPlaceholder(`folder-${folder.id}`)]
     }))
 
@@ -107,6 +110,7 @@ export function useApsProjects() {
           _apsId: `folder-${content.id}`,
           _hubId: item._hubId,
           _projectId: projectId,
+          _region: item._region,
           children: [makeLoadingPlaceholder(`folder-${content.id}`)]
         }
       }
@@ -115,7 +119,8 @@ export function useApsProjects() {
         icon: content.isRevitFile ? 'i-lucide-file-box' : 'i-lucide-file',
         _apsType: 'item',
         _apsId: `item-${content.id}`,
-        _projectId: projectId
+        _projectId: projectId,
+        _region: item._region
       }
     })
 

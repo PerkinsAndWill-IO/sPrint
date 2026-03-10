@@ -45,6 +45,7 @@ export interface SelectedFileState {
   projectId: string
   name: string
   urn: string
+  region?: string
   loading: boolean
   error: string | null
   derivatives: PdfDerivative[]

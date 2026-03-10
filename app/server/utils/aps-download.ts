@@ -36,9 +36,10 @@ export function deriveFileName(derivativeUrn: string): string {
   return parts[parts.length - 1] || 'unknown.pdf'
 }
 
-export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string, token: string): Promise<SignedCookieInfo> {
+export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string, token: string, region?: string): Promise<SignedCookieInfo> {
   const encodedDerivativeUrn = encodeURIComponent(derivativeUrn)
-  const url = `${APS_BASE_URL}/modelderivative/v2/designdata/${urn}/manifest/${encodedDerivativeUrn}/signedcookies?useCdn=true`
+  const basePath = `/modelderivative/v2/designdata/${urn}/manifest/${encodedDerivativeUrn}/signedcookies?useCdn=true`
+  const url = `${APS_BASE_URL}${modelDerivativePath(basePath, region)}`
 
   const response = await fetch(url, {
     headers: {
@@ -72,10 +73,10 @@ export async function downloadDerivative(signedInfo: SignedCookieInfo, derivativ
   }
 }
 
-export async function downloadAllDerivatives(urn: string, derivativeUrns: string[], token: string): Promise<DerivativeFile[]> {
+export async function downloadAllDerivatives(urn: string, derivativeUrns: string[], token: string, region?: string): Promise<DerivativeFile[]> {
   return Promise.all(
     derivativeUrns.map(async (derivativeUrn) => {
-      const signedInfo = await getSignedDerivativeUrl(urn, derivativeUrn, token)
+      const signedInfo = await getSignedDerivativeUrl(urn, derivativeUrn, token, region)
       return downloadDerivative(signedInfo, derivativeUrn)
     })
   )

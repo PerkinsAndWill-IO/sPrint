@@ -19,9 +19,11 @@ export default eventHandler(async (event) => {
 
   const rawToken = await getApsAccessToken(event)
 
+  const region = body.region as string | undefined
+
   // Download all derivatives from all file groups in parallel
   const allDownloads = await Promise.all(
-    fileGroups.map(group => downloadAllDerivatives(group.urn, group.derivatives, rawToken))
+    fileGroups.map(group => downloadAllDerivatives(group.urn, group.derivatives, rawToken, region))
   )
 
   // --- Merge phase ---

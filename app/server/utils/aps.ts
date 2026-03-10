@@ -68,6 +68,13 @@ export async function getApsAccessToken(event: H3Event): Promise<string> {
   return await refreshAccessToken(event)
 }
 
+export function modelDerivativePath(path: string, region?: string): string {
+  if (region === 'EMEA') {
+    return path.replace('/modelderivative/v2/', '/modelderivative/v2/regions/eu/')
+  }
+  return path
+}
+
 export async function apsFetch<T>(token: string, path: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${APS_BASE_URL}${path}`
   return await $fetch<T>(url, {
