@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { AccordionItem } from '@nuxt/ui'
 import type { DerivativeFormat } from '~/types/derivatives'
+import { getFormatCounts } from '~/utils/derivative-formats'
 
 const {
   selectedFilesList,
@@ -35,29 +36,6 @@ function handlePreview(itemId: string, guid: string) {
   previewModelUrn.value = file.urn
   previewRegion.value = file.region
   previewOpen.value = true
-}
-
-const FORMAT_LABELS: Record<DerivativeFormat, string> = {
-  pdf: 'PDF', dwg: 'DWG', dwf: 'DWF', ifc: 'IFC',
-  thumbnail: 'Thumb', aec: 'AEC', sdb: 'SDB', svf: 'SVF', other: 'Other'
-}
-
-const FORMAT_COLORS: Record<DerivativeFormat, 'error' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'neutral'> = {
-  pdf: 'error', dwg: 'primary', dwf: 'secondary', ifc: 'info',
-  thumbnail: 'neutral', aec: 'info', sdb: 'warning', svf: 'success', other: 'neutral'
-}
-
-function fileFormatCounts(file: { derivatives: { format: DerivativeFormat }[] }): { format: DerivativeFormat, label: string, color: typeof FORMAT_COLORS[DerivativeFormat], count: number }[] {
-  const counts = new Map<DerivativeFormat, number>()
-  for (const d of file.derivatives) {
-    counts.set(d.format, (counts.get(d.format) || 0) + 1)
-  }
-  return Array.from(counts.entries()).map(([format, count]) => ({
-    format,
-    label: FORMAT_LABELS[format],
-    color: FORMAT_COLORS[format],
-    count
-  }))
 }
 
 const accordionItems = computed<AccordionItem[]>(() =>
@@ -95,7 +73,7 @@ function fileState(itemId: string) {
         </div>
         <div v-else-if="fileState(item.value!)?.derivatives.length" class="flex flex-wrap gap-1">
           <UBadge
-            v-for="fc in fileFormatCounts(fileState(item.value!)!)"
+            v-for="fc in getFormatCounts(fileState(item.value!)!.derivatives)"
             :key="fc.format"
             size="xs"
             :color="fc.color"

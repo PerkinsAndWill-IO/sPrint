@@ -36,18 +36,6 @@ export function resolveMimeType(format: DerivativeFormat): string {
   return map[format]
 }
 
-export const FORMAT_LABELS: Record<DerivativeFormat, string> = {
-  pdf: 'PDF',
-  dwg: 'DWG',
-  dwf: 'DWF',
-  ifc: 'IFC',
-  thumbnail: 'Thumbnail',
-  aec: 'AEC Data',
-  sdb: 'SDB',
-  svf: 'SVF',
-  other: 'Other'
-}
-
 export function filterDerivatives(children: ApsManifestChild[], formats?: DerivativeFormat[]): Derivative[] {
   const result: Derivative[] = []
 
@@ -99,7 +87,7 @@ export function filterDerivatives(children: ApsManifestChild[], formats?: Deriva
           format,
           mimeType: resolveMimeType(format),
           viewSets: normalizeViewSets(child.ViewSets),
-          active: format === 'pdf' as DerivativeFormat
+          active: format === 'pdf'
         })
       }
     }

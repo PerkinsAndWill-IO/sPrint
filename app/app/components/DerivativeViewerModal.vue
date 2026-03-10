@@ -17,7 +17,9 @@ const jsonError = ref<string | null>(null)
 const viewerError = ref<string | null>(null)
 
 const viewerContainer = ref<HTMLDivElement | null>(null)
-let viewer: Autodesk.Viewing.GuiViewer3D | null = null
+const viewer = shallowRef<Autodesk.Viewing.GuiViewer3D | null>(null)
+
+let viewerInitialized = false
 
 function onLoad() {
   loading.value = false
@@ -55,30 +57,32 @@ async function initForgeViewer() {
   try {
     await loadForgeViewerScript()
 
-    // Get access token from our server
-    const { access_token } = await $fetch<{ access_token: string }>('/api/aps/viewer-token')
-
-    // Initialize the viewer
-    await new Promise<void>((resolve, reject) => {
-      const options: Autodesk.Viewing.InitializerOptions = {
-        env: props.region === 'EMEA' ? 'AutodeskProduction2' : 'AutodeskProduction',
-        api: props.region === 'EMEA' ? 'streamingV2_EU' : 'streamingV2',
-        getAccessToken: (onTokenReady) => {
-          onTokenReady(access_token, 3600)
+    // Initialize the viewer SDK once per page lifetime
+    if (!viewerInitialized) {
+      await new Promise<void>((resolve) => {
+        const options: Autodesk.Viewing.InitializerOptions = {
+          env: props.region === 'EMEA' ? 'AutodeskProduction2' : 'AutodeskProduction',
+          api: props.region === 'EMEA' ? 'streamingV2_EU' : 'streamingV2',
+          getAccessToken: async (onTokenReady) => {
+            const { access_token } = await $fetch<{ access_token: string }>('/api/aps/viewer-token')
+            onTokenReady(access_token, 3600)
+          }
         }
-      }
 
-      Autodesk.Viewing.Initializer(options, () => {
-        resolve()
+        Autodesk.Viewing.Initializer(options, () => {
+          viewerInitialized = true
+          resolve()
+        })
       })
-    })
+    }
 
     // Create viewer instance
-    viewer = new Autodesk.Viewing.GuiViewer3D(viewerContainer.value)
-    const startedCode = viewer.start()
+    const v = new Autodesk.Viewing.GuiViewer3D(viewerContainer.value)
+    const startedCode = v.start()
     if (startedCode > 0) {
       throw new Error('Failed to start viewer')
     }
+    viewer.value = v
 
     // Load the document
     const documentId = `urn:${props.modelUrn}`
@@ -91,7 +95,7 @@ async function initForgeViewer() {
             reject(new Error('No viewable geometry found in this model'))
             return
           }
-          viewer!.loadDocumentNode(doc, defaultModel).then(() => {
+          v.loadDocumentNode(doc, defaultModel).then(() => {
             resolve()
           }).catch(reject)
         },
@@ -110,9 +114,9 @@ async function initForgeViewer() {
 }
 
 function destroyViewer() {
-  if (viewer) {
-    viewer.finish()
-    viewer = null
+  if (viewer.value) {
+    viewer.value.finish()
+    viewer.value = null
   }
 }
 

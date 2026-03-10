@@ -1,29 +1,6 @@
 <script setup lang="ts">
 import type { Derivative, DerivativeFormat, ViewSet } from '~/types/derivatives'
-
-const FORMAT_LABELS: Record<DerivativeFormat, string> = {
-  pdf: 'PDF',
-  dwg: 'DWG',
-  dwf: 'DWF',
-  ifc: 'IFC',
-  thumbnail: 'Thumbnail',
-  aec: 'AEC Data',
-  sdb: 'SDB',
-  svf: 'SVF',
-  other: 'Other'
-}
-
-const FORMAT_COLORS: Record<DerivativeFormat, 'error' | 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'neutral'> = {
-  pdf: 'error',
-  dwg: 'primary',
-  dwf: 'secondary',
-  ifc: 'info',
-  thumbnail: 'neutral',
-  aec: 'info',
-  sdb: 'warning',
-  svf: 'success',
-  other: 'neutral'
-}
+import { FORMAT_LABELS, FORMAT_COLORS, PREVIEWABLE_FORMATS, getFormatCounts } from '~/utils/derivative-formats'
 
 const props = defineProps<{
   derivatives: Derivative[]
@@ -41,22 +18,7 @@ const emit = defineEmits<{
 const search = ref('')
 const activeFormatFilter = ref<DerivativeFormat | null>('pdf')
 
-const availableFormats = computed(() => {
-  const counts = new Map<DerivativeFormat, number>()
-  for (const d of props.derivatives) {
-    counts.set(d.format, (counts.get(d.format) || 0) + 1)
-  }
-  return Array.from(counts.entries()).map(([format, count]) => ({
-    format,
-    label: FORMAT_LABELS[format],
-    color: FORMAT_COLORS[format],
-    count
-  }))
-})
-
-watchEffect(() => {
-  console.log('derivatives', JSON.parse(JSON.stringify(props.derivatives)))
-})
+const availableFormats = computed(() => getFormatCounts(props.derivatives))
 
 const filteredDerivatives = computed(() => {
   let list = props.derivatives
@@ -81,7 +43,7 @@ function toggleFormatFilter(format: DerivativeFormat) {
 }
 
 function isPreviewable(format: DerivativeFormat): boolean {
-  return format === 'pdf' || format === 'thumbnail' || format === 'aec' || format === 'svf'
+  return PREVIEWABLE_FORMATS.has(format)
 }
 </script>
 

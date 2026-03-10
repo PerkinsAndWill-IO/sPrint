@@ -111,22 +111,28 @@ export function useDerivatives() {
     )
   }
 
-  function selectAllForFile(itemId: string, guids?: string[]) {
+  function setActiveForFile(itemId: string, active: boolean, guids?: string[]) {
     const entry = selectedFiles.get(itemId)
     if (!entry) return
+    const guidSet = guids ? new Set(guids) : null
     entry.derivatives = entry.derivatives.map(d =>
-      (!guids || guids.includes(d.guid)) ? { ...d, active: true } : d
+      (!guidSet || guidSet.has(d.guid))
+        ? d.active === active ? d : { ...d, active }
+        : d
     )
-    if (!guids) entry.viewSets = entry.viewSets.map(v => ({ ...v, active: true }))
+    if (!guidSet) {
+      entry.viewSets = entry.viewSets.map(v =>
+        v.active === active ? v : { ...v, active }
+      )
+    }
+  }
+
+  function selectAllForFile(itemId: string, guids?: string[]) {
+    setActiveForFile(itemId, true, guids)
   }
 
   function deselectAllForFile(itemId: string, guids?: string[]) {
-    const entry = selectedFiles.get(itemId)
-    if (!entry) return
-    entry.derivatives = entry.derivatives.map(d =>
-      (!guids || guids.includes(d.guid)) ? { ...d, active: false } : d
-    )
-    if (!guids) entry.viewSets = entry.viewSets.map(v => ({ ...v, active: false }))
+    setActiveForFile(itemId, false, guids)
   }
 
   async function exportSelected() {
