@@ -136,10 +136,17 @@ export function useApsProjects() {
     try {
       switch (item._apsType) {
         case 'hub':
+          // External hub has no real hub ID — skip loading projects
+          if (item._hubId === 'external') return
           await loadProjects(item)
           break
         case 'project':
-          await loadTopFolders(item)
+          // External projects already have children loaded, but if not, use folder contents
+          if (item._folderId) {
+            await loadFolderContents({ ...item, _apsId: `folder-${item._folderId}` })
+          } else {
+            await loadTopFolders(item)
+          }
           break
         case 'folder':
           await loadFolderContents(item)
@@ -157,13 +164,20 @@ export function useApsProjects() {
     }
   }
 
-  function searchRevitFiles(hubId: string, projectId: string) {
+  function searchRevitFiles(hubId: string | undefined, projectId: string, folderId?: string) {
     searchingProject.value = projectId
     searchResults.value = []
     searchProgress.value = 'Starting search...'
     scannedFolders.value = 0
 
-    const eventSource = new EventSource(`/api/aps/revit-files?hubId=${encodeURIComponent(hubId)}&projectId=${encodeURIComponent(projectId)}`)
+    const params = new URLSearchParams({ projectId })
+    if (folderId) {
+      params.set('folderId', folderId)
+    } else if (hubId) {
+      params.set('hubId', hubId)
+    }
+
+    const eventSource = new EventSource(`/api/aps/revit-files?${params.toString()}`)
 
     eventSource.onmessage = (event) => {
       const data: RevitFileSSEEvent = JSON.parse(event.data)
@@ -215,6 +229,87 @@ export function useApsProjects() {
     items.value = [node]
   }
 
+  function parseBim360Url(url: string): { projectId: string, folderId: string } | null {
+    try {
+      const parsed = new URL(url)
+      // Support: docs.b360.autodesk.com/projects/{id}/folders/{urn}/detail
+      // Support: acc.autodesk.com/docs/files/projects/{id}?folderUrn={urn}
+      const pathMatch = parsed.pathname.match(/\/projects\/([^/]+)\/folders\/([^/]+)/)
+      if (pathMatch) {
+        const projectId = pathMatch[1]
+        const folderId = decodeURIComponent(pathMatch[2])
+        return {
+          projectId: projectId.startsWith('b.') ? projectId : `b.${projectId}`,
+          folderId
+        }
+      }
+      return null
+    } catch {
+      return null
+    }
+  }
+
+  async function addExternalProject(url: string) {
+    const parsed = parseBim360Url(url)
+    if (!parsed) throw new Error('Invalid BIM 360 / ACC URL')
+
+    const response = await $fetch('/api/aps/project-info', {
+        params: { projectId: parsed.projectId, folderId: parsed.folderId }
+      })
+
+      const children: ApsTreeItem[] = response.contents.map((content): ApsTreeItem => {
+        if (content.type === 'folders') {
+          return {
+            label: content.name,
+            _apsType: 'folder',
+            _apsId: `folder-${content.id}`,
+            _projectId: parsed.projectId,
+            children: [makeLoadingPlaceholder(`folder-${content.id}`)]
+          }
+        }
+        return {
+          label: content.name,
+          icon: content.isRevitFile ? 'i-lucide-file-box' : 'i-lucide-file',
+          _apsType: 'item',
+          _apsId: `item-${content.id}`,
+          _projectId: parsed.projectId
+        }
+      })
+
+      const projectNode: ApsTreeItem = {
+        label: response.folderName,
+        icon: 'i-lucide-folder-kanban',
+        slot: 'project' as const,
+        _apsType: 'project',
+        _apsId: `project-${parsed.projectId}-${parsed.folderId}`,
+        _projectId: parsed.projectId,
+        _folderId: parsed.folderId,
+        _loaded: true,
+        children
+      }
+
+      // Find or create "External Projects" hub node
+      const externalHubId = 'hub-external'
+      const existingHub = items.value.find(i => i._apsId === externalHubId)
+      if (existingHub) {
+        if (!existingHub.children?.find(c => c._apsId === projectNode._apsId)) {
+          existingHub.children = [...(existingHub.children || []).filter(c => c._apsType !== 'loading'), projectNode]
+        }
+      } else {
+        const externalHub: ApsTreeItem = {
+          label: 'External Projects',
+          icon: 'i-lucide-globe',
+          _apsType: 'hub',
+          _apsId: externalHubId,
+          _hubId: 'external',
+          _loaded: true,
+          children: [projectNode]
+        }
+        items.value = [...items.value, externalHub]
+      }
+      items.value = [...items.value]
+  }
+
   return {
     items,
     loading,
@@ -226,6 +321,7 @@ export function useApsProjects() {
     loadHubs,
     handleToggle,
     searchRevitFiles,
-    addManualHub
+    addManualHub,
+    addExternalProject
   }
 }

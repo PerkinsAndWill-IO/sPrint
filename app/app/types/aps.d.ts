@@ -32,6 +32,7 @@ export interface ApsTreeItem extends TreeItem {
   _apsId: string
   _projectId?: string
   _hubId?: string
+  _folderId?: string
   _region?: string
   _loaded?: boolean
   children?: ApsTreeItem[]

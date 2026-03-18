@@ -13,7 +13,8 @@ const {
   loadHubs,
   handleToggle,
   searchRevitFiles,
-  addManualHub
+  addManualHub,
+  addExternalProject
 } = useApsProjects()
 
 const { isFileSelected, toggleFile, removeFile } = useDerivatives()
@@ -22,6 +23,10 @@ const selectedProject = ref<ApsTreeItem | null>(null)
 const error = ref<string | null>(null)
 const manualHubId = ref('')
 const showManualInput = ref(false)
+const externalUrl = ref('')
+const externalError = ref<string | null>(null)
+const externalPopoverOpen = ref(false)
+const externalLoading = ref(false)
 const treeFilter = ref('')
 const resultsDrawerOpen = ref(false)
 const resultsFilter = ref('')
@@ -79,6 +84,21 @@ function onAddManualHub() {
   addManualHub(manualHubId.value.trim())
 }
 
+async function onAddExternalProject() {
+  if (!externalUrl.value.trim()) return
+  externalError.value = null
+  externalLoading.value = true
+  try {
+    await addExternalProject(externalUrl.value.trim())
+    externalUrl.value = ''
+    externalPopoverOpen.value = false
+  } catch (e: unknown) {
+    externalError.value = e instanceof Error ? e.message : 'Failed to load external project'
+  } finally {
+    externalLoading.value = false
+  }
+}
+
 onMounted(async () => {
   try {
     await loadHubs()
@@ -110,9 +130,11 @@ function onSelect(_e: unknown, item: TreeItem) {
 }
 
 function onSearchRevitFiles(project: ApsTreeItem) {
-  if (!project._hubId || !project._projectId) return
+  if (!project._projectId) return
+  // External projects use folderId instead of hubId
+  if (!project._hubId && !project._folderId) return
   selectedProject.value = project
-  searchRevitFiles(project._hubId, project._projectId)
+  searchRevitFiles(project._hubId, project._projectId, project._folderId)
 }
 
 function onSearchResultClick(fileId: string, fileName: string) {
@@ -126,9 +148,45 @@ function onSearchResultClick(fileId: string, fileName: string) {
   <div class="flex h-full flex-col">
     <!-- Scrollable tree section -->
     <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-      <h2 class="text-lg font-semibold">
-        ACC/Bim360 Projects
-      </h2>
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">
+          ACC/Bim360 Projects
+        </h2>
+        <UPopover v-model:open="externalPopoverOpen">
+          <UButton
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            icon="i-lucide-globe"
+            label="Add External"
+          />
+          <template #content>
+            <div class="flex flex-col gap-2 p-3 w-80">
+              <p class="text-xs text-muted">
+                Paste a BIM 360 or ACC project URL to add it directly.
+              </p>
+              <UInput
+                v-model="externalUrl"
+                icon="i-lucide-link"
+                placeholder="https://docs.b360.autodesk.com/..."
+                size="sm"
+                autofocus
+                @keyup.enter="onAddExternalProject"
+              />
+              <p v-if="externalError" class="text-xs text-red-500">{{ externalError }}</p>
+              <UButton
+                size="sm"
+                label="Add"
+                icon="i-lucide-plus"
+                :loading="externalLoading"
+                :disabled="!externalUrl.trim()"
+                block
+                @click="onAddExternalProject"
+              />
+            </div>
+          </template>
+        </UPopover>
+      </div>
 
       <div v-if="error" class="flex flex-col gap-3 rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
         <p>{{ error }}</p>

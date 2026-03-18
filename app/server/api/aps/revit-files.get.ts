@@ -1,10 +1,14 @@
 import { searchRevitFiles } from '../../utils/aps-traversal'
 
 export default eventHandler(async (event) => {
-  const { hubId, projectId } = getQuery(event)
+  const { hubId, projectId, folderId } = getQuery(event)
 
-  if (!hubId || !projectId) {
-    throw createError({ statusCode: 400, statusMessage: 'hubId and projectId are required' })
+  if (!projectId) {
+    throw createError({ statusCode: 400, statusMessage: 'projectId is required' })
+  }
+
+  if (!hubId && !folderId) {
+    throw createError({ statusCode: 400, statusMessage: 'hubId or folderId is required' })
   }
 
   const token = await getApsAccessToken(event)
@@ -18,18 +22,33 @@ export default eventHandler(async (event) => {
   }
 
   try {
-    // Fetch top folders
-    const topFoldersResponse = await apsFetch<{ data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }> }>(
-      token,
-      `/project/v1/hubs/${hubId}/projects/${projectId}/topFolders`
-    )
+    let topFolders: Array<{ id: string, path: string }>
 
-    const topFolders = topFoldersResponse.data
-      .filter(item => item.type === 'folders')
-      .map(item => ({
-        id: item.id,
-        path: item.attributes.displayName || item.attributes.name || 'Unnamed'
-      }))
+    if (folderId) {
+      // External project: use the provided folder as root, get its subfolders
+      const folderResponse = await apsFetch<{ data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }> }>(
+        token,
+        `/data/v1/projects/${projectId}/folders/${folderId}/contents`
+      )
+      topFolders = folderResponse.data
+        .filter(item => item.type === 'folders')
+        .map(item => ({
+          id: item.id,
+          path: item.attributes.displayName || item.attributes.name || 'Unnamed'
+        }))
+    } else {
+      // Normal hub project: fetch top folders via hubs API
+      const topFoldersResponse = await apsFetch<{ data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }> }>(
+        token,
+        `/project/v1/hubs/${hubId}/projects/${projectId}/topFolders`
+      )
+      topFolders = topFoldersResponse.data
+        .filter(item => item.type === 'folders')
+        .map(item => ({
+          id: item.id,
+          path: item.attributes.displayName || item.attributes.name || 'Unnamed'
+        }))
+    }
 
     let totalFiles = 0
 
