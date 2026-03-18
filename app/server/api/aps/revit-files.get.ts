@@ -25,17 +25,10 @@ export default eventHandler(async (event) => {
     let topFolders: Array<{ id: string, path: string }>
 
     if (folderId) {
-      // External project: use the provided folder as root, get its subfolders
-      const folderResponse = await apsFetch<{ data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }> }>(
-        token,
-        `/data/v1/projects/${projectId}/folders/${folderId}/contents`
-      )
-      topFolders = folderResponse.data
-        .filter(item => item.type === 'folders')
-        .map(item => ({
-          id: item.id,
-          path: item.attributes.displayName || item.attributes.name || 'Unnamed'
-        }))
+      // External project: search the provided folder directly
+      // The search endpoint recursively searches all subfolders server-side,
+      // so we don't need to list subfolders and search each one individually
+      topFolders = [{ id: folderId as string, path: 'Project Files' }]
     } else {
       // Normal hub project: fetch top folders via hubs API
       const topFoldersResponse = await apsFetch<{ data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }> }>(
