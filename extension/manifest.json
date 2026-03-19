@@ -20,7 +20,8 @@
     {
       "matches": [
         "https://docs.b360.autodesk.com/projects/*",
-        "https://acc.autodesk.com/docs/files/projects/*"
+        "https://acc.autodesk.com/docs/files/projects/*",
+        "https://acc.can.autodesk.com/docs/files/projects/*"
       ],
       "js": ["src/scripts/content.ts"]
     }

@@ -69,7 +69,7 @@ function udpateTabUI(tab: chrome.tabs.Tab, tabId: number) {
     "https://docs.b360.autodesk.com/projects/.*/folders/.*/detail/viewer/items/.*"
   );
   const accRegexp = new RegExp(
-    "https://acc.autodesk.com/docs/files/projects/.*"
+    "https://acc(\\.[a-z]+)?\\.autodesk\\.com/docs/files/projects/.*"
   );
 
   if (!tab.url) return;

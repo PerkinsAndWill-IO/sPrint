@@ -230,23 +230,7 @@ export function useApsProjects() {
   }
 
   function parseBim360Url(url: string): { projectId: string, folderId: string } | null {
-    try {
-      const parsed = new URL(url)
-      // Support: docs.b360.autodesk.com/projects/{id}/folders/{urn}/detail
-      // Support: acc.autodesk.com/docs/files/projects/{id}?folderUrn={urn}
-      const pathMatch = parsed.pathname.match(/\/projects\/([^/]+)\/folders\/([^/]+)/)
-      if (pathMatch) {
-        const projectId = pathMatch[1]
-        const folderId = decodeURIComponent(pathMatch[2])
-        return {
-          projectId: projectId.startsWith('b.') ? projectId : `b.${projectId}`,
-          folderId
-        }
-      }
-      return null
-    } catch {
-      return null
-    }
+    return parseAccUrl(url)
   }
 
   async function addExternalProject(url: string) {
