@@ -12,7 +12,8 @@ export default eventHandler(async (event) => {
 
   const manifest = await apsFetch<ApsManifest>(
     token,
-    modelDerivativePath(`/modelderivative/v2/designdata/${urn}/manifest`, region as string | undefined)
+    modelDerivativePath(`/modelderivative/v2/designdata/${urn}/manifest`, region as string | undefined),
+    region as string | undefined
   )
 
   const firstDerivative = manifest.derivatives[0]

@@ -75,11 +75,19 @@ export function modelDerivativePath(path: string, region?: string): string {
   return path
 }
 
-export async function apsFetch<T>(token: string, path: string): Promise<T> {
+export function regionHeader(region?: string): Record<string, string> {
+  if (region && region !== 'US') {
+    return { Region: region }
+  }
+  return {}
+}
+
+export async function apsFetch<T>(token: string, path: string, region?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${APS_BASE_URL}${path}`
-  return await $fetch<T>(url, {
+  return await $fetch(url, {
     headers: {
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
+      ...regionHeader(region)
     }
-  })
+  }) as T
 }

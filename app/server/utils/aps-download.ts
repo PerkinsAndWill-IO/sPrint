@@ -56,7 +56,8 @@ export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string,
 
   const response = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
+      ...regionHeader(region)
     }
   })
 
