@@ -84,10 +84,19 @@ export function regionHeader(region?: string): Record<string, string> {
 
 export async function apsFetch<T>(token: string, path: string, region?: string): Promise<T> {
   const url = path.startsWith('http') ? path : `${APS_BASE_URL}${path}`
-  return await $fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...regionHeader(region)
-    }
-  }) as T
+  try {
+    return await $fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...regionHeader(region)
+      }
+    }) as T
+  } catch (err: unknown) {
+    const fetchErr = err as { status?: number, data?: unknown, message?: string }
+    const detail = fetchErr.data ? JSON.stringify(fetchErr.data) : fetchErr.message
+    throw createError({
+      statusCode: fetchErr.status || 502,
+      statusMessage: `APS API error: ${detail}`
+    })
+  }
 }

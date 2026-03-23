@@ -16,7 +16,7 @@ export function parseSignedCookies(cookieHeader: string): { policy: string, keyP
   const cookies: Record<string, string> = {}
   for (const part of cookieHeader.split(',')) {
     const match = part.match(/([^=]+)=([^;]+)/)
-    if (match) {
+    if (match?.[1] && match[2]) {
       cookies[match[1].trim()] = match[2].trim()
     }
   }
@@ -62,7 +62,8 @@ export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string,
   })
 
   if (!response.ok) {
-    throw new Error(`Failed to get signed cookies for ${derivativeUrn}: ${response.status}`)
+    const body = await response.text().catch(() => '')
+    throw new Error(`Failed to get signed cookies for ${derivativeUrn}: ${response.status} ${body}`)
   }
 
   const cookieHeader = response.headers.get('set-cookie') || ''
@@ -77,7 +78,8 @@ export async function downloadDerivative(signedInfo: SignedCookieInfo, derivativ
 
   const response = await fetch(downloadUrl)
   if (!response.ok) {
-    throw new Error(`Failed to download derivative: ${response.status}`)
+    const body = await response.text().catch(() => '')
+    throw new Error(`Failed to download derivative: ${response.status} ${body}`)
   }
 
   const arrayBuffer = await response.arrayBuffer()
