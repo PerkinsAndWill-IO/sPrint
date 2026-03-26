@@ -18,6 +18,7 @@ const {
 } = useApsProjects()
 
 const { isFileSelected, toggleFile, removeFile } = useDerivatives()
+const runtimeConfig = useRuntimeConfig()
 
 const selectedProject = ref<ApsTreeItem | null>(null)
 const error = ref<string | null>(null)
@@ -153,13 +154,13 @@ function onSearchResultClick(fileId: string, fileName: string) {
           ACC/Bim360 Projects
         </h2>
         <UPopover v-model:open="externalPopoverOpen">
-          <UButton
-            size="xs"
-            variant="ghost"
-            color="neutral"
-            icon="i-lucide-globe"
-            label="Add External"
-          />
+            <UButton
+              size="xs"
+              variant="ghost"
+              color="neutral"
+              icon="i-lucide-globe"
+              label="Add from external hub"
+            />
           <template #content>
             <div class="flex flex-col gap-2 p-3 w-80">
               <p class="text-xs text-muted">
@@ -183,6 +184,39 @@ function onSearchResultClick(fileId: string, fileName: string) {
                 block
                 @click="onAddExternalProject"
               />
+              <UPopover :content="{ side: 'left', align: 'start', sideOffset: 8 }">
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  color="info"
+                  icon="i-lucide-info"
+                  label="Can't see your projects?"
+                  block
+                />
+                <template #content>
+                  <div class="flex max-h-[80vh] w-[28rem] flex-col gap-3 overflow-y-auto p-4 text-xs">
+                    <p class="text-sm font-semibold">Setup Custom Integration</p>
+                    <p class="text-muted">An ACC Account Admin must add sPrint as a Custom Integration:</p>
+                    <p class="text-muted">Prerequisites: You must be an ACC Account Admin for the relevant ACC account.</p>
+                    <ol class="list-decimal list-inside space-y-2 text-muted">
+                      <li>Open <strong>Account Admin</strong> (left navigation)</li>
+                      <li>In the Account Admin menu, click <strong>Custom Integrations</strong></li>
+                      <li>Click <strong>+ Add custom integration</strong></li>
+                    </ol>
+                    <img src="/images/setup/acc-custom-integrations.png" alt="ACC Custom Integrations page" class="w-full rounded border border-default" />
+                    <p class="text-muted">In the "Add custom integration" window:</p>
+                    <ul class="list-disc list-inside space-y-2 text-muted">
+                      <li>In Autodesk Platform Services Client ID (required), paste: <code class="select-all rounded bg-elevated px-1">{{ runtimeConfig.public.apsClientId }}</code></li>
+                      <li>In Custom integration name (required), enter: <strong>sPrint</strong></li>
+                    </ul>
+                    <img src="/images/setup/acc-add-integration.png" alt="Add custom integration dialog" class="w-full rounded border border-default" />
+                    <ol start="5" class="list-decimal list-inside space-y-2 text-muted">
+                      <li>Click Next and follow the prompts to confirm/authorize the integration</li>
+                      <li>After completing, return to Custom Integrations and confirm it is listed and the status is <strong>Active</strong></li>
+                    </ol>
+                  </div>
+                </template>
+              </UPopover>
             </div>
           </template>
         </UPopover>
