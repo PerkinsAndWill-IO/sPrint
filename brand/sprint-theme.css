@@ -1,0 +1,119 @@
+/**
+ * sPrint Brand Theme - CSS Custom Properties
+ * Import this file to apply sPrint branding to any app.
+ *
+ * Usage:
+ *   @import './sprint-theme.css';
+ *
+ * All colors are available as CSS custom properties.
+ * Light mode is default; dark mode activates via [data-theme="dark"],
+ * .dark class, or prefers-color-scheme media query.
+ */
+
+/* ===== Font ===== */
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&display=swap');
+
+:root {
+  /* --- Typography --- */
+  --sprint-font-sans: 'Public Sans', sans-serif;
+  --sprint-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* --- Primary (Green) Palette --- */
+  --sprint-green-50:  #EFFDF5;
+  --sprint-green-100: #D9FBE8;
+  --sprint-green-200: #B3F5D1;
+  --sprint-green-300: #75EDAE;
+  --sprint-green-400: #00DC82;
+  --sprint-green-500: #00C16A;
+  --sprint-green-600: #00A155;
+  --sprint-green-700: #007F45;
+  --sprint-green-800: #016538;
+  --sprint-green-900: #0A5331;
+  --sprint-green-950: #052E16;
+
+  /* --- Logo Colors --- */
+  --sprint-logo-bg: #1e2330;
+  --sprint-logo-fg: #FFFFFF;
+
+  /* --- Light Mode (default) --- */
+  --sprint-primary: var(--sprint-green-500);
+  --sprint-primary-hover: var(--sprint-green-600);
+  --sprint-primary-subtle: var(--sprint-green-50);
+  --sprint-primary-muted: var(--sprint-green-100);
+  --sprint-primary-foreground: #FFFFFF;
+
+  --sprint-bg-page: #FFFFFF;
+  --sprint-bg-surface: #F9FAFB;
+  --sprint-bg-elevated: #FFFFFF;
+
+  --sprint-text-primary: #111827;
+  --sprint-text-secondary: #4B5563;
+  --sprint-text-muted: #9CA3AF;
+
+  --sprint-border: #E5E7EB;
+  --sprint-border-strong: #D1D5DB;
+
+  --sprint-success: #00C16A;
+  --sprint-error: #EF4444;
+  --sprint-warning: #EAB308;
+  --sprint-info: #3B82F6;
+
+  --sprint-theme-color: #FFFFFF;
+}
+
+/* --- Dark Mode --- */
+[data-theme="dark"],
+.dark,
+:root.dark {
+  --sprint-primary: var(--sprint-green-400);
+  --sprint-primary-hover: var(--sprint-green-500);
+  --sprint-primary-subtle: var(--sprint-green-950);
+  --sprint-primary-muted: var(--sprint-green-900);
+  --sprint-primary-foreground: #052E16;
+
+  --sprint-bg-page: #1b1718;
+  --sprint-bg-surface: #1E293B;
+  --sprint-bg-elevated: #334155;
+
+  --sprint-text-primary: #F9FAFB;
+  --sprint-text-secondary: #D1D5DB;
+  --sprint-text-muted: #6B7280;
+
+  --sprint-border: #374151;
+  --sprint-border-strong: #4B5563;
+
+  --sprint-success: #00DC82;
+  --sprint-error: #F87171;
+  --sprint-warning: #FACC15;
+  --sprint-info: #60A5FA;
+
+  --sprint-theme-color: #1b1718;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not(.light) {
+    --sprint-primary: var(--sprint-green-400);
+    --sprint-primary-hover: var(--sprint-green-500);
+    --sprint-primary-subtle: var(--sprint-green-950);
+    --sprint-primary-muted: var(--sprint-green-900);
+    --sprint-primary-foreground: #052E16;
+
+    --sprint-bg-page: #1b1718;
+    --sprint-bg-surface: #1E293B;
+    --sprint-bg-elevated: #334155;
+
+    --sprint-text-primary: #F9FAFB;
+    --sprint-text-secondary: #D1D5DB;
+    --sprint-text-muted: #6B7280;
+
+    --sprint-border: #374151;
+    --sprint-border-strong: #4B5563;
+
+    --sprint-success: #00DC82;
+    --sprint-error: #F87171;
+    --sprint-warning: #FACC15;
+    --sprint-info: #60A5FA;
+
+    --sprint-theme-color: #1b1718;
+  }
+}
