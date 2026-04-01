@@ -45,6 +45,11 @@ function toggleFormatFilter(format: DerivativeFormat) {
 function isPreviewable(format: DerivativeFormat): boolean {
   return PREVIEWABLE_FORMATS.has(format)
 }
+
+const { list: virtualList, containerProps, wrapperProps } = useVirtualList(
+  filteredDerivatives,
+  { itemHeight: 28, overscan: 10 }
+)
 </script>
 
 <template>
@@ -114,37 +119,40 @@ function isPreviewable(format: DerivativeFormat): boolean {
           </UButton>
         </div>
       </div>
-      <div class="max-h-96 overflow-y-auto">
-        <div
-          v-for="d in filteredDerivatives"
-          :key="d.guid"
-          class="group flex items-center gap-2 rounded px-1 py-0.5 hover:bg-elevated"
-        >
-          <UCheckbox
-            :model-value="d.active"
-            :label="d.name"
-            size="sm"
-            class="flex-1 min-w-0"
-            :ui="{ label: 'truncate' }"
-            @update:model-value="emit('toggleDerivative', d.guid)"
-          />
-          <UBadge size="xs" :color="FORMAT_COLORS[d.format]" variant="subtle" class="shrink-0">
-            {{ FORMAT_LABELS[d.format] }}
-          </UBadge>
-          <UTooltip :text="isPreviewable(d.format) ? 'Preview' : 'Download'">
-            <UButton
-              :icon="isPreviewable(d.format) ? 'i-lucide-eye' : 'i-lucide-download'"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              class="shrink-0"
-              @click.stop="emit('preview', d.guid)"
+      <p v-if="filteredDerivatives.length === 0" class="text-sm text-muted py-2">
+        No derivatives found
+      </p>
+      <div v-else v-bind="containerProps" class="max-h-96">
+        <div v-bind="wrapperProps">
+          <div
+            v-for="{ data: d } in virtualList"
+            :key="d.guid"
+            class="group flex items-center gap-2 rounded px-1 hover:bg-elevated"
+            style="height: 28px;"
+          >
+            <UCheckbox
+              :model-value="d.active"
+              :label="d.name"
+              size="sm"
+              class="flex-1 min-w-0"
+              :ui="{ label: 'truncate' }"
+              @update:model-value="emit('toggleDerivative', d.guid)"
             />
-          </UTooltip>
+            <UBadge size="xs" :color="FORMAT_COLORS[d.format]" variant="subtle" class="shrink-0">
+              {{ FORMAT_LABELS[d.format] }}
+            </UBadge>
+            <UTooltip :text="isPreviewable(d.format) ? 'Preview' : 'Download'">
+              <UButton
+                :icon="isPreviewable(d.format) ? 'i-lucide-eye' : 'i-lucide-download'"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                class="shrink-0"
+                @click.stop="emit('preview', d.guid)"
+              />
+            </UTooltip>
+          </div>
         </div>
-        <p v-if="filteredDerivatives.length === 0" class="text-sm text-muted py-2">
-          No derivatives found
-        </p>
       </div>
     </div>
   </div>

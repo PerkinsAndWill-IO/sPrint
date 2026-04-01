@@ -94,9 +94,8 @@ export function useDerivatives() {
   function toggleDerivative(itemId: string, guid: string) {
     const entry = selectedFiles.get(itemId)
     if (!entry) return
-    entry.derivatives = entry.derivatives.map(d =>
-      d.guid === guid ? { ...d, active: !d.active } : d
-    )
+    const d = entry.derivatives.find(d => d.guid === guid)
+    if (d) d.active = !d.active
   }
 
   function toggleViewSet(itemId: string, name: string) {
@@ -106,24 +105,20 @@ export function useDerivatives() {
     if (!viewSet) return
     const newActive = !viewSet.active
     viewSet.active = newActive
-    entry.derivatives = entry.derivatives.map(d =>
-      d.viewSets.includes(name) ? { ...d, active: newActive } : d
-    )
+    for (const d of entry.derivatives) {
+      if (d.viewSets.includes(name)) d.active = newActive
+    }
   }
 
   function setActiveForFile(itemId: string, active: boolean, guids?: string[]) {
     const entry = selectedFiles.get(itemId)
     if (!entry) return
     const guidSet = guids ? new Set(guids) : null
-    entry.derivatives = entry.derivatives.map(d =>
-      (!guidSet || guidSet.has(d.guid))
-        ? d.active === active ? d : { ...d, active }
-        : d
-    )
+    for (const d of entry.derivatives) {
+      if (!guidSet || guidSet.has(d.guid)) d.active = active
+    }
     if (!guidSet) {
-      entry.viewSets = entry.viewSets.map(v =>
-        v.active === active ? v : { ...v, active }
-      )
+      for (const v of entry.viewSets) v.active = active
     }
   }
 
