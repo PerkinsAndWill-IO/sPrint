@@ -70,7 +70,7 @@ export function useApsProjects() {
       _projectId: project.id,
       _region: item._region,
       children: [makeLoadingPlaceholder(`project-${project.id}`)]
-    }))
+    })).sort((a, b) => (a.label ?? '').localeCompare(b.label ?? ''))
 
     findAndReplaceChildren(items.value, item._apsId, children)
     items.value = [...items.value]
