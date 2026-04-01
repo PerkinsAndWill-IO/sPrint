@@ -4,15 +4,15 @@ import { searchRevitFiles } from '../../utils/aps-traversal'
 interface SearchVersion {
   type: string
   id: string
-  attributes: { displayName?: string; name?: string; fileType?: string }
-  relationships?: { item?: { data?: { type: string; id: string } } }
+  attributes: { displayName?: string, name?: string, fileType?: string }
+  relationships?: { item?: { data?: { type: string, id: string } } }
 }
 
 interface SearchIncluded {
   type: string
   id: string
-  attributes: { displayName?: string; name?: string }
-  relationships?: { parent?: { data?: { type: string; id: string } } }
+  attributes: { displayName?: string, name?: string }
+  relationships?: { parent?: { data?: { type: string, id: string } } }
 }
 
 interface SearchResponse {
@@ -140,7 +140,7 @@ describe('APS search-based .rvt file discovery', () => {
 
   it('calls onProgress for each top folder', async () => {
     const fetch = createMockSearchFetch()
-    const progressCalls: Array<{ folder: string; searched: number }> = []
+    const progressCalls: Array<{ folder: string, searched: number }> = []
 
     await searchRevitFiles(
       fetch,
@@ -157,14 +157,14 @@ describe('APS search-based .rvt file discovery', () => {
 
   it('calls onFile for each discovered file', async () => {
     const fetch = createMockSearchFetch()
-    const fileCalls: Array<{ id: string; name: string; path: string }> = []
+    const fileCalls: Array<{ id: string, name: string, path: string }> = []
 
     await searchRevitFiles(
       fetch,
       PROJECT_ID,
       topFolders,
       undefined,
-      (file) => fileCalls.push(file)
+      file => fileCalls.push(file)
     )
 
     expect(fileCalls).toHaveLength(3)

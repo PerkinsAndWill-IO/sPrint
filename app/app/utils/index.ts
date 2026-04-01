@@ -10,7 +10,7 @@ export function randomInt(min: number, max: number): number {
  *  - acc.autodesk.com/docs/files/projects/{id}?folderUrn={urn}  (ACC US)
  *  - acc.can.autodesk.com/docs/files/projects/{id}?folderUrn={urn} (ACC Canada)
  */
-export function parseAccUrl(url: string): { projectId: string; folderId: string } | null {
+export function parseAccUrl(url: string): { projectId: string, folderId: string } | null {
   try {
     const parsed = new URL(url)
 
@@ -21,7 +21,7 @@ export function parseAccUrl(url: string): { projectId: string; folderId: string 
       const folderId = decodeURIComponent(pathMatch[2]!)
       return {
         projectId: projectId.startsWith('b.') ? projectId : `b.${projectId}`,
-        folderId,
+        folderId
       }
     }
 
@@ -32,7 +32,7 @@ export function parseAccUrl(url: string): { projectId: string; folderId: string 
       const projectId = accPathMatch[1]!
       return {
         projectId: projectId.startsWith('b.') ? projectId : `b.${projectId}`,
-        folderId: folderUrn,
+        folderId: folderUrn
       }
     }
 

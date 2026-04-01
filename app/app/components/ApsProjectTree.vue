@@ -322,7 +322,7 @@ function onSearchResultClick(fileId: string, fileName: string) {
               size="xs"
               variant="ghost"
               :color="favoritesStore.isFavorite((item as ApsTreeItem)._projectId || '') ? 'warning' : 'neutral'"
-              :icon="favoritesStore.isFavorite((item as ApsTreeItem)._projectId || '') ? 'i-lucide-star' : 'i-lucide-star'"
+              icon="i-lucide-star"
               :class="favoritesStore.isFavorite((item as ApsTreeItem)._projectId || '') ? 'opacity-100' : 'opacity-40 hover:opacity-100'"
               @click="favoritesStore.toggleFavorite({
                 projectId: (item as ApsTreeItem)._projectId || '',

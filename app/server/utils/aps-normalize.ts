@@ -2,13 +2,13 @@ import type { ApsHub, ApsFolderContent } from '~/types/aps'
 
 interface ApsHubRaw {
   id: string
-  attributes: { name: string; region: string }
+  attributes: { name: string, region: string }
 }
 
 interface ApsFolderItemRaw {
   id: string
   type: string
-  attributes: { displayName?: string; name?: string }
+  attributes: { displayName?: string, name?: string }
 }
 
 export function normalizeHubs(data: ApsHubRaw[]): ApsHub[] {
@@ -19,7 +19,7 @@ export function normalizeHubs(data: ApsHubRaw[]): ApsHub[] {
   }))
 }
 
-export function normalizeWarnings(warnings: Array<{ Detail?: string; Title?: string }> | undefined): string[] {
+export function normalizeWarnings(warnings: Array<{ Detail?: string, Title?: string }> | undefined): string[] {
   return (warnings || []).map(w => w.Detail || w.Title || 'Unknown warning')
 }
 

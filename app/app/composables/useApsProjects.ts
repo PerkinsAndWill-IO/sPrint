@@ -30,16 +30,17 @@ function findAndReplaceChildren(items: ApsTreeItem[], parentId: string, newChild
   return false
 }
 
-export function useApsProjects() {
-  const items = ref<ApsTreeItem[]>([])
-  const loading = ref(false)
-  const warnings = ref<string[]>([])
-  const searchingProject = ref<string | null>(null)
-  const searchProgress = ref('')
-  const searchResults = ref<ApsRevitFile[]>([])
-  const scannedFolders = ref(0)
-  const expandedKeys = ref<string[]>([])
+// Module-scope shared state
+const items = ref<ApsTreeItem[]>([])
+const loading = ref(false)
+const warnings = ref<string[]>([])
+const searchingProject = ref<string | null>(null)
+const searchProgress = ref('')
+const searchResults = ref<ApsRevitFile[]>([])
+const scannedFolders = ref(0)
+const expandedKeys = ref<string[]>([])
 
+export function useApsProjects() {
   async function loadHubs() {
     loading.value = true
     warnings.value = []

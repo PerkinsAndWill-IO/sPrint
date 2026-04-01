@@ -104,12 +104,24 @@ function isPreviewable(format: DerivativeFormat): boolean {
 
     <div class="flex flex-col gap-1">
       <div class="flex items-center justify-between">
-        <p class="text-xs font-medium text-muted">Derivatives</p>
+        <p class="text-xs font-medium text-muted">
+          Derivatives
+        </p>
         <div class="flex items-center gap-1">
-          <UButton size="xs" variant="link" color="neutral" @click="emit('selectAll', filteredGuids)">
+          <UButton
+            size="xs"
+            variant="link"
+            color="neutral"
+            @click="emit('selectAll', filteredGuids)"
+          >
             Select All
           </UButton>
-          <UButton size="xs" variant="link" color="neutral" @click="emit('deselectAll', filteredGuids)">
+          <UButton
+            size="xs"
+            variant="link"
+            color="neutral"
+            @click="emit('deselectAll', filteredGuids)"
+          >
             Deselect All
           </UButton>
         </div>
@@ -128,7 +140,12 @@ function isPreviewable(format: DerivativeFormat): boolean {
             :ui="{ label: 'truncate' }"
             @update:model-value="emit('toggleDerivative', d.guid)"
           />
-          <UBadge size="xs" :color="FORMAT_COLORS[d.format]" variant="subtle" class="shrink-0">
+          <UBadge
+            size="xs"
+            :color="FORMAT_COLORS[d.format]"
+            variant="subtle"
+            class="shrink-0"
+          >
             {{ FORMAT_LABELS[d.format] }}
           </UBadge>
           <UTooltip :text="isPreviewable(d.format) ? 'Preview' : 'Download'">

@@ -19,7 +19,7 @@ interface SearchVersionItem {
   }
   relationships?: {
     item?: {
-      data?: { type: string; id: string }
+      data?: { type: string, id: string }
     }
   }
 }
@@ -33,7 +33,7 @@ interface SearchIncludedItem {
   }
   relationships?: {
     parent?: {
-      data?: { type: string; id: string }
+      data?: { type: string, id: string }
     }
   }
 }
@@ -52,7 +52,7 @@ interface SearchResponse {
 export async function searchRevitFiles(
   fetchFn: (url: string) => Promise<SearchResponse>,
   projectId: string,
-  topFolders: Array<{ id: string; path: string }>,
+  topFolders: Array<{ id: string, path: string }>,
   onProgress?: (folder: string, searched: number) => void,
   onFile?: (file: RevitFile) => void
 ): Promise<SearchResult> {

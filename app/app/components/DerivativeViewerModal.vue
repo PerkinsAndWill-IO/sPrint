@@ -106,8 +106,7 @@ async function initForgeViewer() {
     })
 
     loading.value = false
-  }
-  catch (e) {
+  } catch (e) {
     viewerError.value = e instanceof Error ? e.message : 'Failed to load 3D viewer'
     loading.value = false
   }
@@ -132,20 +131,16 @@ watch(open, async (val) => {
         const res = await fetch(props.url)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         jsonData.value = await res.json()
-      }
-      catch (e) {
+      } catch (e) {
         jsonError.value = e instanceof Error ? e.message : 'Failed to load JSON'
-      }
-      finally {
+      } finally {
         loading.value = false
       }
-    }
-    else if (props.format === 'svf') {
+    } else if (props.format === 'svf') {
       await nextTick()
       initForgeViewer()
     }
-  }
-  else {
+  } else {
     destroyViewer()
   }
 })
@@ -184,7 +179,7 @@ onBeforeUnmount(() => {
               :alt="title"
               class="max-w-full max-h-full object-contain"
               @load="onLoad"
-            />
+            >
           </div>
         </template>
 

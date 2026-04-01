@@ -94,11 +94,13 @@ const groups = computed(() => [{
             @dragend="onDragEnd"
             @click="pendingNavigation = { projectId: fav.projectId, hubId: fav.hubId, region: fav.region }"
           >
-            <UIcon name="i-lucide-folder-kanban" class="shrink-0 text-muted" />
-            <span v-if="!collapsed" class="truncate">{{ fav.label }}</span>
             <UTooltip v-if="collapsed" :text="fav.label" side="right">
-              <span />
+              <UIcon name="i-lucide-folder-kanban" class="shrink-0 text-muted" />
             </UTooltip>
+            <template v-else>
+              <UIcon name="i-lucide-folder-kanban" class="shrink-0 text-muted" />
+              <span class="truncate">{{ fav.label }}</span>
+            </template>
           </div>
         </div>
 
