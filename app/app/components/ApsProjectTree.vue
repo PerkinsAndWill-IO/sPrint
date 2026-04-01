@@ -2,6 +2,7 @@
 import type { TreeItemToggleEvent } from 'reka-ui'
 import type { TreeItem } from '@nuxt/ui'
 import type { ApsTreeItem } from '~/types/aps'
+import { useFavoritesStore } from '~/stores/favorites'
 
 const {
   items,
@@ -19,6 +20,7 @@ const {
 
 const { isFileSelected, toggleFile, removeFile } = useDerivatives()
 const runtimeConfig = useRuntimeConfig()
+const favoritesStore = useFavoritesStore()
 
 const selectedProject = ref<ApsTreeItem | null>(null)
 const error = ref<string | null>(null)
@@ -303,7 +305,20 @@ function onSearchResultClick(fileId: string, fileName: string) {
           <UIcon name="i-lucide-loader" class="animate-spin shrink-0" />
         </template>
         <template #project-trailing="{ item }">
-          <div @click.stop>
+          <div class="flex items-center gap-1" @click.stop>
+            <UButton
+              size="xs"
+              variant="ghost"
+              :color="favoritesStore.isFavorite((item as ApsTreeItem)._projectId || '') ? 'warning' : 'neutral'"
+              :icon="favoritesStore.isFavorite((item as ApsTreeItem)._projectId || '') ? 'i-lucide-star' : 'i-lucide-star'"
+              :class="favoritesStore.isFavorite((item as ApsTreeItem)._projectId || '') ? 'opacity-100' : 'opacity-40 hover:opacity-100'"
+              @click="favoritesStore.toggleFavorite({
+                projectId: (item as ApsTreeItem)._projectId || '',
+                hubId: (item as ApsTreeItem)._hubId || '',
+                region: (item as ApsTreeItem)._region,
+                label: (item as ApsTreeItem).label || ''
+              })"
+            />
             <UButton
               v-if="searchingProject !== (item as ApsTreeItem)._projectId"
               size="xs"
