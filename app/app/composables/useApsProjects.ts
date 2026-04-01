@@ -38,6 +38,7 @@ export function useApsProjects() {
   const searchProgress = ref('')
   const searchResults = ref<ApsRevitFile[]>([])
   const scannedFolders = ref(0)
+  const expandedKeys = ref<string[]>([])
 
   async function loadHubs() {
     loading.value = true
@@ -300,6 +301,29 @@ export function useApsProjects() {
       items.value = [...items.value]
   }
 
+  async function navigateToProject(hubId: string, projectId: string, region?: string) {
+    // Find the hub node
+    const hubKey = `hub-${hubId}`
+    const hubNode = items.value.find(i => i._apsId === hubKey)
+    if (!hubNode) return
+
+    // Load projects if not yet loaded
+    if (!hubNode._loaded) {
+      await loadProjects(hubNode)
+    }
+
+    // Find the project node
+    const projectKey = `project-${projectId}`
+    const projectNode = hubNode.children?.find(c => c._apsId === projectKey)
+    if (!projectNode) return
+
+    // Expand hub and project
+    const newKeys = new Set(expandedKeys.value)
+    newKeys.add(hubKey)
+    newKeys.add(projectKey)
+    expandedKeys.value = [...newKeys]
+  }
+
   return {
     items,
     loading,
@@ -308,10 +332,12 @@ export function useApsProjects() {
     searchProgress,
     searchResults,
     scannedFolders,
+    expandedKeys,
     loadHubs,
     handleToggle,
     searchRevitFiles,
     addManualHub,
-    addExternalProject
+    addExternalProject,
+    navigateToProject
   }
 }

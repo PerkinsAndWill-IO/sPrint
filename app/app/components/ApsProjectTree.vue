@@ -11,11 +11,13 @@ const {
   searchingProject,
   searchProgress,
   searchResults,
+  expandedKeys,
   loadHubs,
   handleToggle,
   searchRevitFiles,
   addManualHub,
-  addExternalProject
+  addExternalProject,
+  navigateToProject
 } = useApsProjects()
 
 const { isFileSelected, toggleFile, removeFile } = useDerivatives()
@@ -293,6 +295,7 @@ function onSearchResultClick(fileId: string, fileName: string) {
 
       <UTree
         v-if="!loading"
+        v-model:expanded="expandedKeys"
         :items="filteredItems"
         :get-key="(item: TreeItem) => (item as ApsTreeItem)._apsId"
         expanded-icon="i-lucide-folder-open"
