@@ -4,6 +4,7 @@ function makeLoadingPlaceholder(parentId: string): ApsTreeItem {
   return {
     label: 'Loading...',
     icon: 'i-lucide-loader',
+    slot: 'loading',
     disabled: true,
     _apsType: 'loading',
     _apsId: `loading-${parentId}`
@@ -13,7 +14,12 @@ function makeLoadingPlaceholder(parentId: string): ApsTreeItem {
 function findAndReplaceChildren(items: ApsTreeItem[], parentId: string, newChildren: ApsTreeItem[]): boolean {
   for (const item of items) {
     if (item._apsId === parentId) {
-      item.children = newChildren
+      if (newChildren.length === 0) {
+        item.children = undefined
+        if (!item.icon) item.icon = 'i-lucide-folder'
+      } else {
+        item.children = newChildren
+      }
       item._loaded = true
       return true
     }

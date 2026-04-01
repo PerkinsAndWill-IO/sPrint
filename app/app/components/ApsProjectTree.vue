@@ -299,6 +299,9 @@ function onSearchResultClick(fileId: string, fileName: string) {
         @toggle="onToggle"
         @select="onSelect"
       >
+        <template #loading-leading>
+          <UIcon name="i-lucide-loader" class="animate-spin shrink-0" />
+        </template>
         <template #project-trailing="{ item }">
           <div @click.stop>
             <UButton
