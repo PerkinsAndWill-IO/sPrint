@@ -46,6 +46,22 @@ function isPreviewable(format: DerivativeFormat): boolean {
   return PREVIEWABLE_FORMATS.has(format)
 }
 
+const viewSetStates = computed(() => {
+  const states = new Map<string, boolean | 'indeterminate'>()
+  for (const vs of props.viewSets) {
+    const setDerivatives = props.derivatives.filter(d => d.viewSets.includes(vs.name))
+    const activeCount = setDerivatives.filter(d => d.active).length
+    if (activeCount === 0) {
+      states.set(vs.name, false)
+    } else if (activeCount === setDerivatives.length) {
+      states.set(vs.name, true)
+    } else {
+      states.set(vs.name, 'indeterminate')
+    }
+  }
+  return states
+})
+
 const { list: virtualList, containerProps, wrapperProps } = useVirtualList(
   filteredDerivatives,
   { itemHeight: 28, overscan: 10 }
@@ -99,7 +115,7 @@ const { list: virtualList, containerProps, wrapperProps } = useVirtualList(
         <UCheckbox
           v-for="vs in viewSets"
           :key="vs.name"
-          :model-value="vs.active"
+          :model-value="viewSetStates.get(vs.name)"
           :label="vs.name"
           size="sm"
           @update:model-value="emit('toggleViewSet', vs.name)"

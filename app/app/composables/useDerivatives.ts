@@ -103,10 +103,12 @@ export function useDerivatives() {
     if (!entry) return
     const viewSet = entry.viewSets.find(v => v.name === name)
     if (!viewSet) return
-    const newActive = !viewSet.active
+    const setDerivatives = entry.derivatives.filter(d => d.viewSets.includes(name))
+    const allActive = setDerivatives.length > 0 && setDerivatives.every(d => d.active)
+    const newActive = !allActive
     viewSet.active = newActive
-    for (const d of entry.derivatives) {
-      if (d.viewSets.includes(name)) d.active = newActive
+    for (const d of setDerivatives) {
+      d.active = newActive
     }
   }
 
