@@ -59,14 +59,20 @@ describe('filterPdfDerivatives', () => {
     expect(result[0].viewSets).toEqual(['Sheet Set 1', 'Sheet Set 2'])
   })
 
-  it('derives name from URN last path segment', () => {
+  it('uses parent descriptive name for PDF derivatives', () => {
     const result = filterPdfDerivatives([mockPdfChild1])
+    expect(result[0].name).toBe('A001 - Floor Plan')
+  })
+
+  it('falls back to URN filename when parent has no name', () => {
+    const noNameParent = { ...mockPdfChild1, name: '' }
+    const result = filterPdfDerivatives([noNameParent])
     expect(result[0].name).toBe('A001.pdf')
   })
 
-  it('falls back to derivative name when URN is missing', () => {
+  it('falls back to child name when parent has no name and no URN', () => {
     const result = filterPdfDerivatives([mockPdfChildNoUrn])
-    expect(result[0].name).toBe('S001 - Structural.pdf')
+    expect(result[0].name).toBe('S001 - Structural')
   })
 
   it('sets all derivatives as active by default', () => {

@@ -47,7 +47,7 @@ export function filterDerivatives(children: ApsManifestChild[], formats?: Deriva
       if (formats && !formats.includes(format)) continue
       result.push({
         guid: pdfChild.guid,
-        name: pdfChild.urn ? pdfChild.urn.split('/').pop()! : pdfChild.name,
+        name: child.name || pdfChild.urn?.split('/').pop() || pdfChild.name,
         urn: pdfChild.urn || '',
         format,
         mimeType: resolveMimeType(format),
