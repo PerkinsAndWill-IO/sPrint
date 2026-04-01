@@ -1,5 +1,14 @@
 <script setup lang="ts">
 const { selectedFilesList, totalSelectedCount, clearAll } = useDerivatives()
+const { navigateToProject } = useApsProjects()
+
+const pendingNavigation = useState<{ projectId: string, hubId: string, region?: string } | null>('pending-favorite-nav', () => null)
+
+watch(pendingNavigation, async (nav) => {
+  if (!nav) return
+  await navigateToProject(nav.hubId, nav.projectId, nav.region)
+  pendingNavigation.value = null
+})
 
 const mobileSelectionOpen = ref(false)
 
