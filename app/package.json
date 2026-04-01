@@ -9,7 +9,8 @@
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
-    "test": "vitest"
+    "test": "vitest",
+    "changelog": "changelogen --output CHANGELOG.md"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.92",
@@ -35,6 +36,7 @@
     "@nuxt/eslint": "^1.15.1",
     "@types/archiver": "^7.0.0",
     "@vue/test-utils": "^2.4.6",
+    "changelogen": "^0.6.2",
     "eslint": "^9.39.2",
     "happy-dom": "^20.6.3",
     "typescript": "^5.9.3",
