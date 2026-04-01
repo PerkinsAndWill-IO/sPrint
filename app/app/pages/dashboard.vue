@@ -18,7 +18,13 @@ definePageMeta({
 </script>
 
 <template>
-  <UDashboardPanel id="dashboard-tree" resizable :default-size="55" :min-size="30" :max-size="70">
+  <UDashboardPanel
+    id="dashboard-tree"
+    resizable
+    :default-size="55"
+    :min-size="30"
+    :max-size="70"
+  >
     <template #header>
       <UDashboardNavbar title="SPRINT">
         <template #leading>
@@ -38,7 +44,13 @@ definePageMeta({
       <UDashboardNavbar>
         <template #title>
           <span>Selected Files</span>
-          <UBadge v-if="selectedFilesList.length > 0" size="sm" color="primary" variant="subtle" class="ml-2">
+          <UBadge
+            v-if="selectedFilesList.length > 0"
+            size="sm"
+            color="primary"
+            variant="subtle"
+            class="ml-2"
+          >
             {{ selectedFilesList.length }}
           </UBadge>
         </template>

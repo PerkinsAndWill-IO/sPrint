@@ -13,25 +13,8 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  routeRules: {
-    '/api/**': {
-      cors: true
-    }
-  },
-
   colorMode: {
     preference: 'dark'
-  },
-
-  compatibilityDate: '2024-07-11',
-
-  eslint: {
-    config: {
-      stylistic: {
-        commaDangle: 'never',
-        braceStyle: '1tbs'
-      }
-    }
   },
 
   runtimeConfig: {
@@ -44,6 +27,23 @@ export default defineNuxtConfig({
       apsClientId: process.env.APS_CLIENT_ID,
       posthogPublicKey: process.env.POSTHOG_KEY,
       posthogHost: process.env.POSTHOG_HOST
+    }
+  },
+
+  routeRules: {
+    '/api/**': {
+      cors: true
+    }
+  },
+
+  compatibilityDate: '2024-07-11',
+
+  eslint: {
+    config: {
+      stylistic: {
+        commaDangle: 'never',
+        braceStyle: '1tbs'
+      }
     }
   }
 })
