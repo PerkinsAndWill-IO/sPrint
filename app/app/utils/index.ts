@@ -42,6 +42,21 @@ export function parseAccUrl(url: string): { projectId: string; folderId: string 
   }
 }
 
+const ACC_BASE_URLS: Record<string, string> = {
+  US: 'https://acc.autodesk.com',
+  EMEA: 'https://acc.autodesk.eu',
+  AU: 'https://acc.autodesk.com.au',
+  CA: 'https://acc.can.autodesk.com',
+}
+
+export function buildAccProjectUrl(projectId: string, region?: string, itemUrn?: string): string {
+  const base = ACC_BASE_URLS[region || 'US'] || ACC_BASE_URLS.US
+  const id = projectId.replace(/^b\./, '')
+  const url = `${base}/docs/files/projects/${id}`
+  if (itemUrn) return `${url}?entityId=${encodeURIComponent(itemUrn)}`
+  return url
+}
+
 export function randomFrom<T>(array: T[]): T {
   return array[Math.floor(Math.random() * array.length)]!
 }

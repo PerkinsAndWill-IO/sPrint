@@ -50,6 +50,12 @@ const accordionItems = computed<AccordionItem[]>(() =>
 function fileState(itemId: string) {
   return selectedFilesList.value.find(f => f.itemId === itemId)
 }
+
+function getAccFileUrl(itemId: string): string {
+  const file = selectedFilesList.value.find(f => f.itemId === itemId)
+  if (!file) return '#'
+  return buildAccProjectUrl(file.projectId, file.region, file.itemId)
+}
 </script>
 
 <template>
@@ -67,7 +73,18 @@ function fileState(itemId: string) {
   >
     <template #default="{ item }">
       <div class="flex flex-col items-start gap-1">
-        <span class="truncate">{{ item.label }}</span>
+        <div class="flex items-center gap-1">
+          <span class="truncate">{{ item.label }}</span>
+          <UButton
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            icon="i-lucide-external-link"
+            :to="getAccFileUrl(item.value!)"
+            target="_blank"
+            @click.stop
+          />
+        </div>
         <div v-if="fileState(item.value!)?.loading" class="flex items-center gap-1">
           <UIcon name="i-lucide-loader" class="animate-spin size-3 text-muted" />
         </div>

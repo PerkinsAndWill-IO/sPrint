@@ -120,6 +120,10 @@ function getItemId(item: ApsTreeItem): string {
   return item._apsId.replace('item-', '')
 }
 
+function getAccUrl(item: ApsTreeItem): string {
+  return buildAccProjectUrl(item._projectId || '', item._region, getItemId(item))
+}
+
 function onSelect(_e: unknown, item: TreeItem) {
   const apsItem = item as ApsTreeItem
   if (isRvtItem(apsItem)) {
@@ -272,7 +276,7 @@ function onSearchResultClick(fileId: string, fileName: string) {
         v-if="!loading && items.length > 0"
         v-model="treeFilter"
         icon="i-lucide-search"
-        placeholder="Filter..."
+        placeholder="Filter projects..."
         size="sm"
         variant="subtle"
       >
@@ -329,6 +333,16 @@ function onSearchResultClick(fileId: string, fileName: string) {
             >
               RVT
             </UBadge>
+            <div @click.stop>
+              <UButton
+                size="xs"
+                variant="ghost"
+                color="neutral"
+                icon="i-lucide-external-link"
+                :to="getAccUrl(item as ApsTreeItem)"
+                target="_blank"
+              />
+            </div>
             <div @click.stop>
               <UCheckbox
                 :model-value="isFileSelected(getItemId(item as ApsTreeItem))"
