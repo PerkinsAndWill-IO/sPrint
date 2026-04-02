@@ -2,6 +2,7 @@
 .claude
 .cursor
 /app/docs/*
+docs/superpowers/
 
 # Environment files
 .env

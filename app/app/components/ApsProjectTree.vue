@@ -323,6 +323,7 @@ function onSearchResultClick(fileId: string, fileName: string) {
               variant="ghost"
               color="neutral"
               icon="i-lucide-file-search"
+              class="whitespace-nowrap"
               :loading="searchingProject === (item as ApsTreeItem)._projectId"
               @click="onSearchRevitFiles(item as ApsTreeItem)"
             >
