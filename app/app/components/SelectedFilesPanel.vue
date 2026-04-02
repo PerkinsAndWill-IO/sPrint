@@ -85,19 +85,24 @@ function getAccFileUrl(itemId: string): string {
             @click.stop
           />
         </div>
-        <div v-if="fileState(item.value!)?.loading" class="flex items-center gap-1">
-          <UIcon name="i-lucide-loader" class="animate-spin size-3 text-muted" />
-        </div>
-        <div v-else-if="fileState(item.value!)?.derivatives.length" class="flex flex-wrap gap-1">
-          <UBadge
-            v-for="fc in getFormatCounts(fileState(item.value!)!.derivatives)"
-            :key="fc.format"
-            size="xs"
-            :color="fc.color"
-            variant="subtle"
-          >
-            {{ fc.count }} {{ fc.label }}
-          </UBadge>
+        <div class="flex flex-wrap gap-1 min-h-5">
+          <template v-if="fileState(item.value!)?.loading">
+            <USkeleton class="h-5 w-14 rounded-full" />
+            <USkeleton class="h-5 w-16 rounded-full" />
+            <USkeleton class="h-5 w-10 rounded-full" />
+            <USkeleton class="h-5 w-18 rounded-full" />
+          </template>
+          <template v-else-if="fileState(item.value!)?.derivatives.length">
+            <UBadge
+              v-for="fc in getFormatCounts(fileState(item.value!)!.derivatives)"
+              :key="fc.format"
+              size="xs"
+              :color="fc.color"
+              variant="subtle"
+            >
+              {{ fc.count }} {{ fc.label }}
+            </UBadge>
+          </template>
         </div>
       </div>
     </template>
@@ -121,9 +126,20 @@ function getAccFileUrl(itemId: string): string {
 
     <template #body="{ item }">
       <div v-for="file in selectedFilesList.filter(f => f.itemId === item.value)" :key="file.itemId">
-        <div v-if="file.loading" class="flex items-center gap-2 text-sm text-muted py-4">
-          <UIcon name="i-lucide-loader" class="animate-spin" />
-          Loading manifest...
+        <div v-if="file.loading" class="flex flex-col gap-4">
+          <div class="flex items-center gap-2">
+            <USkeleton class="h-8 flex-1 rounded-md" />
+            <USkeleton class="h-5 w-12 rounded-full" />
+          </div>
+          <div class="flex flex-wrap gap-1">
+            <USkeleton class="h-6 w-10 rounded-md" />
+            <USkeleton class="h-6 w-14 rounded-md" />
+            <USkeleton class="h-6 w-12 rounded-md" />
+            <USkeleton class="h-6 w-16 rounded-md" />
+          </div>
+          <div class="flex flex-col gap-1">
+            <USkeleton v-for="i in 5" :key="i" class="h-7 w-full rounded-md" />
+          </div>
         </div>
 
         <div v-else-if="file.error && !file.revitVersionSupported" class="py-2">

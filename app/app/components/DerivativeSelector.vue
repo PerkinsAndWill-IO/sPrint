@@ -100,10 +100,7 @@ const { list: virtualList, containerProps, wrapperProps } = useVirtualList(
         :color="f.color"
         @click="toggleFormatFilter(f.format)"
       >
-        {{ f.label }}
-        <UBadge size="xs" :color="f.color" variant="solid">
-          {{ f.count }}
-        </UBadge>
+        {{ f.count }} {{ f.label }}
       </UButton>
     </div>
 

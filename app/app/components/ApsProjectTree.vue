@@ -309,19 +309,15 @@ function onSearchResultClick(fileId: string, fileName: string) {
         <template #project-trailing="{ item }">
           <div @click.stop>
             <UButton
-              v-if="searchingProject !== (item as ApsTreeItem)._projectId"
               size="xs"
               variant="ghost"
               color="neutral"
               icon="i-lucide-file-search"
+              :loading="searchingProject === (item as ApsTreeItem)._projectId"
               @click="onSearchRevitFiles(item as ApsTreeItem)"
             >
-              Find .rvt
+              {{ searchingProject === (item as ApsTreeItem)._projectId ? 'Scanning...' : 'Find .rvt' }}
             </UButton>
-            <div v-else class="flex items-center gap-1 text-xs text-muted">
-              <UIcon name="i-lucide-loader" class="animate-spin" size="14" />
-              <span>Scanning...</span>
-            </div>
           </div>
         </template>
         <template #item-trailing="{ item }">

@@ -26,6 +26,8 @@ export const FORMAT_COLORS: Record<DerivativeFormat, FormatColor> = {
   other: 'neutral'
 }
 
+export const FORMAT_ORDER: readonly DerivativeFormat[] = ['pdf', 'dwg', 'dwf', 'ifc', 'svf', 'aec', 'sdb', 'thumbnail', 'other']
+
 export const PREVIEWABLE_FORMATS: ReadonlySet<DerivativeFormat> = new Set(['pdf', 'thumbnail', 'aec', 'svf'])
 
 export function getFormatCounts(derivatives: { format: DerivativeFormat }[]): { format: DerivativeFormat, label: string, color: FormatColor, count: number }[] {
@@ -33,10 +35,12 @@ export function getFormatCounts(derivatives: { format: DerivativeFormat }[]): { 
   for (const d of derivatives) {
     counts.set(d.format, (counts.get(d.format) || 0) + 1)
   }
-  return Array.from(counts.entries()).map(([format, count]) => ({
-    format,
-    label: FORMAT_LABELS[format],
-    color: FORMAT_COLORS[format],
-    count
-  }))
+  return FORMAT_ORDER
+    .filter(f => counts.has(f))
+    .map(format => ({
+      format,
+      label: FORMAT_LABELS[format],
+      color: FORMAT_COLORS[format],
+      count: counts.get(format)!
+    }))
 }
