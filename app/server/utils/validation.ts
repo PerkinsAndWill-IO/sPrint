@@ -22,7 +22,7 @@ const derivativeUrnSchema = z
   .max(2000, 'Derivative URN too long')
   .refine(val => !/[\r\n]/.test(val), 'Derivative URN must not contain newlines')
 
-const VALID_REGIONS = ['US', 'EMEA'] as const
+const VALID_REGIONS = ['US', 'EMEA', 'CAN'] as const
 const regionSchema = z.enum(VALID_REGIONS)
 
 export function validateApsId(value: string): string {
