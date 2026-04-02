@@ -19,6 +19,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v5
+        with:
+          package_json_file: app/package.json
 
       - uses: actions/setup-node@v4
         with:
