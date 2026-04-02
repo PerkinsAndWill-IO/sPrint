@@ -62,10 +62,7 @@ const viewSetStates = computed(() => {
   return states
 })
 
-const { list: virtualList, containerProps, wrapperProps } = useVirtualList(
-  filteredDerivatives,
-  { itemHeight: 28, overscan: 10 }
-)
+const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overscan: 10 }
 </script>
 
 <template>
@@ -147,11 +144,14 @@ const { list: virtualList, containerProps, wrapperProps } = useVirtualList(
       <p v-if="filteredDerivatives.length === 0" class="text-sm text-muted py-2">
         No derivatives found
       </p>
-      <div v-else v-bind="containerProps" class="max-h-96">
-        <div v-bind="wrapperProps">
+      <UScrollArea
+        v-else
+        :items="filteredDerivatives"
+        :virtualize="virtualizeOptions"
+        class="max-h-96"
+      >
+        <template #default="{ item: d }">
           <div
-            v-for="{ data: d } in virtualList"
-            :key="d.guid"
             class="group flex items-center gap-2 rounded px-1 hover:bg-elevated"
             style="height: 28px;"
           >
@@ -182,8 +182,8 @@ const { list: virtualList, containerProps, wrapperProps } = useVirtualList(
               />
             </UTooltip>
           </div>
-        </div>
-      </div>
+        </template>
+      </UScrollArea>
     </div>
   </div>
 </template>

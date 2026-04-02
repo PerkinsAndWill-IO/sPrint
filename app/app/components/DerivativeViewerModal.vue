@@ -15,6 +15,7 @@ const loading = ref(true)
 const jsonData = ref<unknown>(null)
 const jsonError = ref<string | null>(null)
 const viewerError = ref<string | null>(null)
+const pdfBlobUrl = ref<string | null>(null)
 
 const viewerContainer = ref<HTMLDivElement | null>(null)
 const viewer = shallowRef<Autodesk.Viewing.GuiViewer3D | null>(null)
@@ -23,6 +24,13 @@ let viewerInitialized = false
 
 function onLoad() {
   loading.value = false
+}
+
+function revokePdfBlob() {
+  if (pdfBlobUrl.value) {
+    URL.revokeObjectURL(pdfBlobUrl.value)
+    pdfBlobUrl.value = null
+  }
 }
 
 async function loadForgeViewerScript(): Promise<void> {
@@ -125,8 +133,20 @@ watch(open, async (val) => {
     jsonData.value = null
     jsonError.value = null
     viewerError.value = null
+    revokePdfBlob()
 
-    if (props.format === 'aec') {
+    if (props.format === 'pdf') {
+      try {
+        const res = await fetch(props.url)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const blob = await res.blob()
+        pdfBlobUrl.value = URL.createObjectURL(blob)
+      } catch (e) {
+        viewerError.value = e instanceof Error ? e.message : 'Failed to load PDF'
+      } finally {
+        loading.value = false
+      }
+    } else if (props.format === 'aec') {
       try {
         const res = await fetch(props.url)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -142,11 +162,13 @@ watch(open, async (val) => {
     }
   } else {
     destroyViewer()
+    revokePdfBlob()
   }
 })
 
 onBeforeUnmount(() => {
   destroyViewer()
+  revokePdfBlob()
 })
 </script>
 
@@ -156,17 +178,22 @@ onBeforeUnmount(() => {
 
     <template #body>
       <div class="relative h-full w-full min-h-0">
-        <!-- PDF: iframe -->
+        <!-- PDF: fetch as blob, render in iframe -->
         <template v-if="format === 'pdf'">
           <div v-if="loading" class="absolute inset-0 flex items-center justify-center">
             <UIcon name="i-lucide-loader" class="animate-spin size-8 text-muted" />
           </div>
+          <div v-else-if="viewerError" class="flex flex-col items-center justify-center h-full gap-4">
+            <UIcon name="i-lucide-alert-circle" class="size-16 text-error" />
+            <p class="text-error text-sm">
+              {{ viewerError }}
+            </p>
+          </div>
           <iframe
-            v-if="open"
-            :src="props.url"
+            v-else-if="pdfBlobUrl"
+            :src="pdfBlobUrl"
             type="application/pdf"
             class="h-full w-full border-0"
-            @load="onLoad"
           />
         </template>
 
