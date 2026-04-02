@@ -1,11 +1,15 @@
 import type { ApsFolderContent } from '~/types/aps'
+import { validateApsId } from '../../utils/validation'
 
 export default eventHandler(async (event) => {
-  const { hubId, projectId } = getQuery(event)
+  const query = getQuery(event)
 
-  if (!hubId || !projectId) {
+  if (!query.hubId || !query.projectId) {
     throw createError({ statusCode: 400, statusMessage: 'hubId and projectId are required' })
   }
+
+  const hubId = validateApsId(query.hubId as string)
+  const projectId = validateApsId(query.projectId as string)
 
   const token = await getApsAccessToken(event)
 

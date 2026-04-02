@@ -1,19 +1,23 @@
 import type { ApsManifest } from '~/types/derivatives'
 import { filterDerivatives, extractViewSets, checkRevitVersion } from '../../utils/derivatives'
+import { validateUrn, validateRegion } from '../../utils/validation'
 
 export default eventHandler(async (event) => {
-  const { urn, region } = getQuery(event)
+  const query = getQuery(event)
 
-  if (!urn) {
+  if (!query.urn) {
     throw createError({ statusCode: 400, statusMessage: 'urn is required' })
   }
+
+  const urn = validateUrn(query.urn as string)
+  const region = validateRegion(query.region as string | undefined)
 
   const token = await getApsAccessToken(event)
 
   const manifest = await apsFetch<ApsManifest>(
     token,
-    modelDerivativePath(`/modelderivative/v2/designdata/${urn}/manifest`, region as string | undefined),
-    region as string | undefined
+    modelDerivativePath(`/modelderivative/v2/designdata/${urn}/manifest`, region),
+    region
   )
 
   const firstDerivative = manifest.derivatives[0]

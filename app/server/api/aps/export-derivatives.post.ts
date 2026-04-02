@@ -2,6 +2,7 @@ import archiver from 'archiver'
 import { PassThrough } from 'node:stream'
 import { parseExportBody, sanitizeFolderName, inferMimeType } from '../../utils/aps-download'
 import { mergePdfBuffers } from '../../utils/pdf-merge'
+import { validateRegion, sanitizeHeaderFilename } from '../../utils/validation'
 
 interface DerivativeFile {
   name: string
@@ -19,7 +20,7 @@ export default eventHandler(async (event) => {
 
   const rawToken = await getApsAccessToken(event)
 
-  const region = body.region as string | undefined
+  const region = validateRegion(body.region as string | undefined)
 
   // Download all derivatives from all file groups in parallel
   const allDownloads = await Promise.all(
@@ -123,7 +124,7 @@ export default eventHandler(async (event) => {
       const mimeType = inferMimeType(file.name)
       setResponseHeaders(event, {
         'Content-Type': mimeType,
-        'Content-Disposition': `attachment; filename="${file.name}"`
+        'Content-Disposition': `attachment; filename="${sanitizeHeaderFilename(file.name)}"`
       })
       return file.data
     }

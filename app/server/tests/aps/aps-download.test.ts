@@ -70,5 +70,17 @@ describe('aps-download utilities', () => {
     it('returns fallback for empty URN', () => {
       expect(deriveFileName('')).toBe('unknown')
     })
+
+    it('strips double quotes from filename to prevent header breakout', () => {
+      expect(deriveFileName('output/file"name.pdf')).toBe('filename.pdf')
+    })
+
+    it('strips newlines from filename to prevent header injection', () => {
+      expect(deriveFileName('output/file\r\nX-Injected: evil.pdf')).toBe('fileX-Injected: evil.pdf')
+    })
+
+    it('strips backslashes from filename', () => {
+      expect(deriveFileName('output/path\\file.pdf')).toBe('pathfile.pdf')
+    })
   })
 })

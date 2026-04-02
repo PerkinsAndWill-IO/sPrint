@@ -7,14 +7,18 @@ export default defineNuxtConfig({
   ],
 
   devtools: {
-    enabled: true
+    enabled: process.env.NODE_ENV !== 'production'
   },
 
   css: ['~/assets/css/main.css'],
 
   routeRules: {
     '/api/**': {
-      cors: true
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'strict-origin-when-cross-origin'
+      }
     }
   },
 

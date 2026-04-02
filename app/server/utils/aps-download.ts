@@ -33,7 +33,9 @@ export function buildCloudFrontUrl(url: string, policy: string, keyPairId: strin
 
 export function deriveFileName(derivativeUrn: string): string {
   const parts = derivativeUrn.split('/')
-  return parts[parts.length - 1] || 'unknown'
+  const raw = parts[parts.length - 1] || 'unknown'
+  const sanitized = raw.replace(/[\r\n"\\]/g, '').trim()
+  return sanitized || 'unknown'
 }
 
 export function inferMimeType(urn: string): string {
@@ -123,6 +125,9 @@ export function sanitizeFolderName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_').trim() || 'unknown'
 }
 
+const MAX_FILE_GROUPS = 50
+const MAX_DERIVATIVES_PER_GROUP = 200
+
 export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], options: ParsedExportOptions } | { error: string } {
   const rawMerge = body.options?.mergeScope
   const options: ParsedExportOptions = {
@@ -133,10 +138,14 @@ export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], op
 
   if (body.files && Array.isArray(body.files)) {
     if (body.files.length === 0) return { error: 'files must be a non-empty array' }
+    if (body.files.length > MAX_FILE_GROUPS) return { error: `Too many file groups (max ${MAX_FILE_GROUPS})` }
     for (const group of body.files) {
       if (!group.urn) return { error: 'Each file must have a urn' }
       if (!group.derivatives || !Array.isArray(group.derivatives) || group.derivatives.length === 0) {
         return { error: 'Each file must have a non-empty derivatives array' }
+      }
+      if (group.derivatives.length > MAX_DERIVATIVES_PER_GROUP) {
+        return { error: `Too many derivatives per file (max ${MAX_DERIVATIVES_PER_GROUP})` }
       }
     }
     return { fileGroups: body.files, options }
@@ -145,6 +154,9 @@ export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], op
   if (!body.urn) return { error: 'urn is required' }
   if (!body.derivatives || !Array.isArray(body.derivatives) || body.derivatives.length === 0) {
     return { error: 'derivatives must be a non-empty array' }
+  }
+  if (body.derivatives.length > MAX_DERIVATIVES_PER_GROUP) {
+    return { error: `Too many derivatives per file (max ${MAX_DERIVATIVES_PER_GROUP})` }
   }
   return { fileGroups: [{ urn: body.urn, derivatives: body.derivatives }], options }
 }

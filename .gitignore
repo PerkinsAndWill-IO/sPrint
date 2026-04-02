@@ -2,3 +2,8 @@
 .claude
 .cursor
 /app/docs/*
+
+# Environment files
+.env
+.env.*
+!.env.example
