@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const APS_ID_PATTERN = /^[a-zA-Z0-9._:~\-]+$/
+const APS_ID_PATTERN = /^[a-zA-Z0-9._:~-]+$/
 const URN_PATTERN = /^[a-zA-Z0-9_\-+=]+$/
 const MAX_ID_LENGTH = 1000
 

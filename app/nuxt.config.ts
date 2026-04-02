@@ -12,29 +12,8 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
-  routeRules: {
-    '/api/**': {
-      headers: {
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-        'Referrer-Policy': 'strict-origin-when-cross-origin'
-      }
-    }
-  },
-
   colorMode: {
     preference: 'dark'
-  },
-
-  compatibilityDate: '2024-07-11',
-
-  eslint: {
-    config: {
-      stylistic: {
-        commaDangle: 'never',
-        braceStyle: '1tbs'
-      }
-    }
   },
 
   runtimeConfig: {
@@ -47,6 +26,27 @@ export default defineNuxtConfig({
       apsClientId: process.env.APS_CLIENT_ID,
       posthogPublicKey: process.env.POSTHOG_KEY,
       posthogHost: process.env.POSTHOG_HOST
+    }
+  },
+
+  routeRules: {
+    '/api/**': {
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'strict-origin-when-cross-origin'
+      }
+    }
+  },
+
+  compatibilityDate: '2024-07-11',
+
+  eslint: {
+    config: {
+      stylistic: {
+        commaDangle: 'never',
+        braceStyle: '1tbs'
+      }
     }
   }
 })

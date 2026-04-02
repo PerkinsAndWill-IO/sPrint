@@ -6,14 +6,13 @@ definePageMeta({
   layout: 'landing'
 })
 
-const route = useRoute()
 const router = useRouter()
 
 // Check if user is authenticated and redirect to dashboard
 onMounted(async () => {
   try {
     const { authenticated } = await $fetch<{ authenticated: boolean }>('/api/auth/check')
-    
+
     if (authenticated) {
       // User is authenticated, redirect to dashboard
       await router.push('/dashboard')
@@ -30,7 +29,7 @@ async function handleLogin() {
   try {
     isLoading.value = true
     const response = await $fetch<{ authUrl: string }>('/api/auth/aps/authorize')
-    
+
     if (response?.authUrl) {
       window.location.href = response.authUrl
     }
@@ -51,13 +50,13 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
         as="div"
         class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/15 dark:bg-indigo-600/30 rounded-full blur-[120px]"
         :initial="{ opacity: 0, scale: 0.5 }"
-        :animate="{ 
-          opacity: 1, 
+        :animate="{
+          opacity: 1,
           scale: [1, 1.1, 0.9, 1],
           x: [0, 100, -50, 50, 0],
           y: [0, 80, -40, 60, 0]
         }"
-        :transition="{ 
+        :transition="{
           opacity: { duration: 1.5 },
           scale: { duration: 12, repeat: Infinity, ease: 'easeInOut' },
           x: { duration: 20, repeat: Infinity, ease: 'easeInOut' },
@@ -68,13 +67,13 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
         as="div"
         class="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-pink-600/15 dark:bg-pink-600/30 rounded-full blur-[120px]"
         :initial="{ opacity: 0, scale: 0.5 }"
-        :animate="{ 
-          opacity: 1, 
+        :animate="{
+          opacity: 1,
           scale: [1, 0.9, 1.1, 1],
           x: [0, -100, 50, -50, 0],
           y: [0, -80, 40, -60, 0]
         }"
-        :transition="{ 
+        :transition="{
           opacity: { duration: 1.5, delay: 0.3 },
           scale: { duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 0.3 },
           x: { duration: 16, repeat: Infinity, ease: 'easeInOut', delay: 0.5 },
@@ -85,13 +84,13 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
         as="div"
         class="absolute top-[40%] left-[40%] w-[30%] h-[30%] bg-purple-600/10 dark:bg-purple-600/20 rounded-full blur-[100px]"
         :initial="{ opacity: 0 }"
-        :animate="{ 
-          opacity: 1, 
+        :animate="{
+          opacity: 1,
           scale: [1, 1.3, 0.8, 1.2, 1],
           x: [0, 60, -40, 30, 0],
           y: [0, -50, 70, -30, 0]
         }"
-        :transition="{ 
+        :transition="{
           opacity: { duration: 1.5, delay: 0.6 },
           scale: { duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 0.6 },
           x: { duration: 12, repeat: Infinity, ease: 'easeInOut', delay: 0.6 },
@@ -130,7 +129,7 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
             Seamless Autodesk Cloud Printing
           </Motion>
         </div>
-        
+
         <!-- Login Button -->
         <Motion
           as="div"
@@ -140,22 +139,22 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
           :transition="{ duration: 0.6, delay: 0.6 }"
         >
           <button
-            @click="handleLogin"
             :disabled="isLoading"
             class="group w-full relative flex items-center justify-center gap-3 bg-white dark:bg-white text-slate-900 px-8 py-4 rounded-full transition-all duration-300 shadow-lg dark:shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-xl dark:hover:shadow-[0_0_30px_rgba(99,102,241,0.4)] hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+            @click="handleLogin"
           >
-            <span v-if="isLoading" class="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></span>
+            <span v-if="isLoading" class="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
             <template v-else>
               <span class="font-semibold text-lg tracking-wide">Sign in with Autodesk</span>
               <img
                 class="w-6 h-6 object-contain"
                 :src="autodeskLogo"
                 alt="Autodesk"
-              />
+              >
             </template>
-            
+
             <!-- Button glow effect -->
-            <div class="absolute inset-0 rounded-full ring-2 ring-slate-200 dark:ring-white/20 group-hover:ring-indigo-400/50 transition-all duration-300"></div>
+            <div class="absolute inset-0 rounded-full ring-2 ring-slate-200 dark:ring-white/20 group-hover:ring-indigo-400/50 transition-all duration-300" />
           </button>
         </Motion>
 
@@ -173,4 +172,3 @@ const autodeskLogo = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAAA
     </div>
   </div>
 </template>
-

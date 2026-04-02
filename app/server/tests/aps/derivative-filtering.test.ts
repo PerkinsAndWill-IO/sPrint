@@ -17,7 +17,6 @@ import {
   mockSdbChild,
   mockSvfChild,
   mockDerivativeWithPdfs,
-  mockDerivativeNoPdfs,
   mockDerivativeOldRevit,
   mockDerivativeNoVersion
 } from '../fixtures/manifest'

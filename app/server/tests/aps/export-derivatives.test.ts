@@ -98,7 +98,6 @@ describe('export-derivatives endpoint', () => {
         expect(result.options).toEqual({ mergeScope: 'none', zip: true, modelFolders: true })
       }
     })
-
   })
 
   describe('export limits', () => {

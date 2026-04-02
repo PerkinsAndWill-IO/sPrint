@@ -1,4 +1,4 @@
-import type { ExportOptions, Derivative, ViewSet, SelectedFileState } from '~/types/derivatives'
+import type { ExportOptions, SelectedFileState } from '~/types/derivatives'
 
 // Module-scope shared state — all callers of useDerivatives() share the same refs
 const selectedFiles = reactive(new Map<string, SelectedFileState>())

@@ -244,60 +244,60 @@ export function useApsProjects() {
     if (!parsed) throw new Error('Invalid BIM 360 / ACC URL')
 
     const response = await $fetch('/api/aps/project-info', {
-        params: { projectId: parsed.projectId, folderId: parsed.folderId }
-      })
+      params: { projectId: parsed.projectId, folderId: parsed.folderId }
+    })
 
-      const children: ApsTreeItem[] = response.contents.map((content): ApsTreeItem => {
-        if (content.type === 'folders') {
-          return {
-            label: content.name,
-            _apsType: 'folder',
-            _apsId: `folder-${content.id}`,
-            _projectId: parsed.projectId,
-            children: [makeLoadingPlaceholder(`folder-${content.id}`)]
-          }
-        }
+    const children: ApsTreeItem[] = response.contents.map((content): ApsTreeItem => {
+      if (content.type === 'folders') {
         return {
           label: content.name,
-          icon: content.isRevitFile ? 'i-lucide-file-box' : 'i-lucide-file',
-          _apsType: 'item',
-          _apsId: `item-${content.id}`,
-          _projectId: parsed.projectId
+          _apsType: 'folder',
+          _apsId: `folder-${content.id}`,
+          _projectId: parsed.projectId,
+          children: [makeLoadingPlaceholder(`folder-${content.id}`)]
         }
-      })
+      }
+      return {
+        label: content.name,
+        icon: content.isRevitFile ? 'i-lucide-file-box' : 'i-lucide-file',
+        _apsType: 'item',
+        _apsId: `item-${content.id}`,
+        _projectId: parsed.projectId
+      }
+    })
 
-      const projectNode: ApsTreeItem = {
-        label: response.folderName,
-        icon: 'i-lucide-folder-kanban',
-        slot: 'project' as const,
-        _apsType: 'project',
-        _apsId: `project-${parsed.projectId}-${parsed.folderId}`,
-        _projectId: parsed.projectId,
-        _folderId: parsed.folderId,
+    const projectNode: ApsTreeItem = {
+      label: response.folderName,
+      icon: 'i-lucide-folder-kanban',
+      slot: 'project' as const,
+      _apsType: 'project',
+      _apsId: `project-${parsed.projectId}-${parsed.folderId}`,
+      _projectId: parsed.projectId,
+      _folderId: parsed.folderId,
+      _loaded: true,
+      children
+    }
+
+    // Find or create "External Projects" hub node
+    const externalHubId = 'hub-external'
+    const existingHub = items.value.find(i => i._apsId === externalHubId)
+    if (existingHub) {
+      if (!existingHub.children?.find(c => c._apsId === projectNode._apsId)) {
+        existingHub.children = [...(existingHub.children || []).filter(c => c._apsType !== 'loading'), projectNode]
+      }
+    } else {
+      const externalHub: ApsTreeItem = {
+        label: 'External Projects',
+        icon: 'i-lucide-globe',
+        _apsType: 'hub',
+        _apsId: externalHubId,
+        _hubId: 'external',
         _loaded: true,
-        children
+        children: [projectNode]
       }
-
-      // Find or create "External Projects" hub node
-      const externalHubId = 'hub-external'
-      const existingHub = items.value.find(i => i._apsId === externalHubId)
-      if (existingHub) {
-        if (!existingHub.children?.find(c => c._apsId === projectNode._apsId)) {
-          existingHub.children = [...(existingHub.children || []).filter(c => c._apsType !== 'loading'), projectNode]
-        }
-      } else {
-        const externalHub: ApsTreeItem = {
-          label: 'External Projects',
-          icon: 'i-lucide-globe',
-          _apsType: 'hub',
-          _apsId: externalHubId,
-          _hubId: 'external',
-          _loaded: true,
-          children: [projectNode]
-        }
-        items.value = [...items.value, externalHub]
-      }
-      items.value = [...items.value]
+      items.value = [...items.value, externalHub]
+    }
+    items.value = [...items.value]
   }
 
   return {

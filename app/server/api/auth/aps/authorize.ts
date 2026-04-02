@@ -14,7 +14,7 @@ export default eventHandler(async (event) => {
 
   // Generate state for CSRF protection
   const state = randomBytes(32).toString('hex')
-  
+
   // Store state in cookie for validation in callback
   setCookie(event, 'aps_oauth_state', state, {
     httpOnly: true,

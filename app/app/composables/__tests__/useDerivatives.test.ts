@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { PdfDerivative, PdfViewSet, SelectedFileState } from '~/types/derivatives'
+import type { PdfDerivative, SelectedFileState } from '~/types/derivatives'
 
 // Test the pure state logic independently from Vue reactivity
 

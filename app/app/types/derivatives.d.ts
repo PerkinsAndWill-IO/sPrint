@@ -69,7 +69,7 @@ export interface ExportRequest {
 }
 
 export interface MultiFileExportRequest {
-  files: { urn: string; derivatives: string[]; name?: string }[]
+  files: { urn: string, derivatives: string[], name?: string }[]
 }
 
 export interface ExportOptions {
