@@ -1,11 +1,15 @@
 import { normalizeFolderContents } from '../../utils/aps-normalize'
+import { validateApsId } from '../../utils/validation'
 
 export default eventHandler(async (event) => {
-  const { projectId, folderId } = getQuery(event)
+  const query = getQuery(event)
 
-  if (!projectId || !folderId) {
+  if (!query.projectId || !query.folderId) {
     throw createError({ statusCode: 400, statusMessage: 'projectId and folderId are required' })
   }
+
+  const projectId = validateApsId(query.projectId as string)
+  const folderId = validateApsId(query.folderId as string)
 
   const token = await getApsAccessToken(event)
 

@@ -82,8 +82,23 @@ export function regionHeader(region?: string): Record<string, string> {
   return {}
 }
 
+export function buildApsUrl(path: string): string {
+  if (path.startsWith('http')) {
+    const parsed = new URL(path)
+    if (parsed.hostname !== 'developer.api.autodesk.com') {
+      throw new Error(`Blocked request to non-APS domain: ${parsed.hostname}`)
+    }
+    return path
+  }
+  return `${APS_BASE_URL}${path}`
+}
+
+export function sanitizeApsError(statusCode: number, _detail: unknown): string {
+  return `APS API error (${statusCode})`
+}
+
 export async function apsFetch<T>(token: string, path: string, region?: string): Promise<T> {
-  const url = path.startsWith('http') ? path : `${APS_BASE_URL}${path}`
+  const url = buildApsUrl(path)
   try {
     return await $fetch(url, {
       headers: {
@@ -93,10 +108,14 @@ export async function apsFetch<T>(token: string, path: string, region?: string):
     }) as T
   } catch (err: unknown) {
     const fetchErr = err as { status?: number, data?: unknown, message?: string }
-    const detail = fetchErr.data ? JSON.stringify(fetchErr.data) : fetchErr.message
+    const status = fetchErr.status || 502
+    if (import.meta.dev) {
+      const detail = fetchErr.data ? JSON.stringify(fetchErr.data) : fetchErr.message
+      console.error(`[APS] ${status}: ${detail}`)
+    }
     throw createError({
-      statusCode: fetchErr.status || 502,
-      statusMessage: `APS API error: ${detail}`
+      statusCode: status,
+      statusMessage: sanitizeApsError(status, fetchErr.data)
     })
   }
 }

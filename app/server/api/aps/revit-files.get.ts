@@ -1,15 +1,20 @@
 import { searchRevitFiles } from '../../utils/aps-traversal'
+import { validateApsId } from '../../utils/validation'
 
 export default eventHandler(async (event) => {
-  const { hubId, projectId, folderId } = getQuery(event)
+  const query = getQuery(event)
 
-  if (!projectId) {
+  if (!query.projectId) {
     throw createError({ statusCode: 400, statusMessage: 'projectId is required' })
   }
 
-  if (!hubId && !folderId) {
+  if (!query.hubId && !query.folderId) {
     throw createError({ statusCode: 400, statusMessage: 'hubId or folderId is required' })
   }
+
+  const projectId = validateApsId(query.projectId as string)
+  const hubId = query.hubId ? validateApsId(query.hubId as string) : undefined
+  const folderId = query.folderId ? validateApsId(query.folderId as string) : undefined
 
   const token = await getApsAccessToken(event)
 
@@ -28,7 +33,7 @@ export default eventHandler(async (event) => {
       // External project: search the provided folder directly
       // The search endpoint recursively searches all subfolders server-side,
       // so we don't need to list subfolders and search each one individually
-      topFolders = [{ id: folderId as string, path: 'Project Files' }]
+      topFolders = [{ id: folderId!, path: 'Project Files' }]
     } else {
       // Normal hub project: fetch top folders via hubs API
       const topFoldersResponse = await apsFetch<{ data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }> }>(
@@ -61,7 +66,7 @@ export default eventHandler(async (event) => {
 
     await searchRevitFiles(
       fetchFn,
-      projectId as string,
+      projectId,
       topFolders,
       (folder, searched) => {
         send({ type: 'progress', folder, scanned: searched })

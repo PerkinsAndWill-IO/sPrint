@@ -101,6 +101,40 @@ describe('export-derivatives endpoint', () => {
 
   })
 
+  describe('export limits', () => {
+    it('rejects requests with more than 50 file groups', () => {
+      const files = Array.from({ length: 51 }, (_, i) => ({
+        urn: `urn${i}`,
+        derivatives: ['d1']
+      }))
+      const result = parseExportBody({ files })
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toContain('Too many')
+      }
+    })
+
+    it('rejects file groups with more than 200 derivatives each', () => {
+      const derivatives = Array.from({ length: 201 }, (_, i) => `d${i}`)
+      const result = parseExportBody({
+        files: [{ urn: 'urn1', derivatives }]
+      })
+      expect('error' in result).toBe(true)
+      if ('error' in result) {
+        expect(result.error).toContain('Too many derivatives')
+      }
+    })
+
+    it('accepts requests at the limit', () => {
+      const files = Array.from({ length: 50 }, (_, i) => ({
+        urn: `urn${i}`,
+        derivatives: ['d1']
+      }))
+      const result = parseExportBody({ files })
+      expect('fileGroups' in result).toBe(true)
+    })
+  })
+
   describe('sanitizeFolderName', () => {
     it('replaces special characters with underscores', () => {
       expect(sanitizeFolderName('file<>:"/\\|?*name')).toBe('file_________name')

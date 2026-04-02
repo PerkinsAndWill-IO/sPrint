@@ -40,10 +40,9 @@ export default eventHandler(async (event) => {
   })
 
   if (!tokenResponse.ok) {
-    const errorData = await tokenResponse.json().catch(() => ({}))
     throw createError({
       statusCode: tokenResponse.status,
-      message: `Token exchange failed: ${errorData.error_description || errorData.error || 'Unknown error'}`
+      message: 'Token exchange failed'
     })
   }
 
