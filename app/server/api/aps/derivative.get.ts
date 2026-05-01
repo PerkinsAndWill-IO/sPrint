@@ -10,11 +10,12 @@ export default eventHandler(async (event) => {
   const urn = validateUrn(query.urn as string)
   const derivativeUrnValue = validateDerivativeUrn(query.derivativeUrn as string)
   const region = validateRegion(query.region as string | undefined)
+  const displayName = typeof query.name === 'string' ? query.name : undefined
 
   const token = await getApsAccessToken(event)
 
   const signedInfo = await getSignedDerivativeUrl(urn, derivativeUrnValue, token, region)
-  const file = await downloadDerivative(signedInfo, derivativeUrnValue)
+  const file = await downloadDerivative(signedInfo, derivativeUrnValue, displayName)
 
   const contentType = (query.mimeType as string) || inferMimeType(derivativeUrnValue)
   const isInline = contentType.startsWith('image/') || contentType === 'application/pdf' || contentType === 'application/json'

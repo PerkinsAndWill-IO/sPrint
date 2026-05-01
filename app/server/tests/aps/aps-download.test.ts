@@ -82,5 +82,27 @@ describe('aps-download utilities', () => {
     it('strips backslashes from filename', () => {
       expect(deriveFileName('output/path\\file.pdf')).toBe('pathfile.pdf')
     })
+
+    it('uses displayName when provided and preserves dots', () => {
+      expect(
+        deriveFileName('urn:adsk.viewing:fs.file:output/pdf/A_400-01.pdf', 'A.400-01 - GENERAL FLOOR PLAN')
+      ).toBe('A.400-01 - GENERAL FLOOR PLAN.pdf')
+    })
+
+    it('does not double-append extension when displayName already has it', () => {
+      expect(
+        deriveFileName('output/pdf/A_400-01.pdf', 'A.400-01.pdf')
+      ).toBe('A.400-01.pdf')
+    })
+
+    it('sanitizes filesystem-illegal characters in displayName but keeps dots', () => {
+      expect(
+        deriveFileName('output/pdf/sheet.pdf', 'A/400:01*?<>|"\\')
+      ).toBe('A_400_01_______.pdf')
+    })
+
+    it('falls back to URN when displayName is empty', () => {
+      expect(deriveFileName('output/pdf/A_400-01.pdf', '')).toBe('A_400-01.pdf')
+    })
   })
 })

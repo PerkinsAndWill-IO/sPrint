@@ -136,7 +136,7 @@ export function useDerivatives() {
     const filesToExport = selectedFilesList.value
       .map(file => ({
         urn: file.urn,
-        derivatives: file.derivatives.filter(d => d.active).map(d => d.urn),
+        derivatives: file.derivatives.filter(d => d.active).map(d => ({ urn: d.urn, name: d.name })),
         name: file.name.replace(/\.rvt$/i, '')
       }))
       .filter(f => f.derivatives.length > 0)
@@ -221,6 +221,8 @@ export function useDerivatives() {
     let url = `/api/aps/derivative?urn=${encodeURIComponent(entry.urn)}&derivativeUrn=${encodeURIComponent(derivativeUrn)}`
     if (mimeType) url += `&mimeType=${encodeURIComponent(mimeType)}`
     if (entry.region) url += `&region=${encodeURIComponent(entry.region)}`
+    const derivative = entry.derivatives.find(d => d.urn === derivativeUrn)
+    if (derivative?.name) url += `&name=${encodeURIComponent(derivative.name)}`
     return url
   }
 

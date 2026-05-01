@@ -63,13 +63,18 @@ export interface SelectedFileState {
   revitVersionSupported: boolean
 }
 
+export interface ExportDerivativeRef {
+  urn: string
+  name?: string
+}
+
 export interface ExportRequest {
   urn: string
-  derivatives: string[]
+  derivatives: (string | ExportDerivativeRef)[]
 }
 
 export interface MultiFileExportRequest {
-  files: { urn: string, derivatives: string[], name?: string }[]
+  files: { urn: string, derivatives: (string | ExportDerivativeRef)[], name?: string }[]
 }
 
 export interface ExportOptions {

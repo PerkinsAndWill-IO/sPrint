@@ -17,7 +17,19 @@ describe('export-derivatives endpoint', () => {
       const result = parseExportBody({ urn: 'test', derivatives: ['a'] })
       expect('fileGroups' in result).toBe(true)
       if ('fileGroups' in result) {
-        expect(result.fileGroups).toEqual([{ urn: 'test', derivatives: ['a'] }])
+        expect(result.fileGroups).toEqual([{ urn: 'test', derivatives: [{ urn: 'a' }] }])
+      }
+    })
+
+    it('accepts derivatives as objects with display names', () => {
+      const result = parseExportBody({
+        urn: 'test',
+        derivatives: [{ urn: 'a', name: 'A.400-01 - GENERAL FLOOR PLAN' }]
+      })
+      if ('fileGroups' in result) {
+        expect(result.fileGroups).toEqual([
+          { urn: 'test', derivatives: [{ urn: 'a', name: 'A.400-01 - GENERAL FLOOR PLAN' }] }
+        ])
       }
     })
   })

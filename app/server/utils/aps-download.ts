@@ -31,7 +31,27 @@ export function buildCloudFrontUrl(url: string, policy: string, keyPairId: strin
   return `${url}?Policy=${policy}&Key-Pair-Id=${keyPairId}&Signature=${signature}`
 }
 
-export function deriveFileName(derivativeUrn: string): string {
+function sanitizeFsName(name: string): string {
+  return name.replace(/[/\\:*?"<>|\r\n]/g, '_').trim()
+}
+
+function extractUrnExtension(urn: string): string {
+  const last = urn.split('/').pop() || ''
+  const m = last.match(/\.[a-zA-Z0-9]{1,8}$/)
+  return m ? m[0] : ''
+}
+
+export function deriveFileName(derivativeUrn: string, displayName?: string): string {
+  if (displayName) {
+    const sanitized = sanitizeFsName(displayName)
+    if (sanitized) {
+      const ext = extractUrnExtension(derivativeUrn)
+      if (ext && !sanitized.toLowerCase().endsWith(ext.toLowerCase())) {
+        return sanitized + ext
+      }
+      return sanitized
+    }
+  }
   const parts = derivativeUrn.split('/')
   const raw = parts[parts.length - 1] || 'unknown'
   const sanitized = raw.replace(/[\r\n"\\]/g, '').trim()
@@ -75,7 +95,7 @@ export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string,
   return { url: body.url, policy, keyPairId, signature }
 }
 
-export async function downloadDerivative(signedInfo: SignedCookieInfo, derivativeUrn: string): Promise<DerivativeFile> {
+export async function downloadDerivative(signedInfo: SignedCookieInfo, derivativeUrn: string, displayName?: string): Promise<DerivativeFile> {
   const downloadUrl = buildCloudFrontUrl(signedInfo.url, signedInfo.policy, signedInfo.keyPairId, signedInfo.signature)
 
   const response = await fetch(downloadUrl)
@@ -86,33 +106,56 @@ export async function downloadDerivative(signedInfo: SignedCookieInfo, derivativ
 
   const arrayBuffer = await response.arrayBuffer()
   return {
-    name: deriveFileName(derivativeUrn),
+    name: deriveFileName(derivativeUrn, displayName),
     data: Buffer.from(arrayBuffer)
   }
 }
 
-export async function downloadAllDerivatives(urn: string, derivativeUrns: string[], token: string, region?: string): Promise<DerivativeFile[]> {
+export interface DerivativeRef {
+  urn: string
+  name?: string
+}
+
+export async function downloadAllDerivatives(urn: string, derivatives: DerivativeRef[], token: string, region?: string): Promise<DerivativeFile[]> {
   return Promise.all(
-    derivativeUrns.map(async (derivativeUrn) => {
-      const signedInfo = await getSignedDerivativeUrl(urn, derivativeUrn, token, region)
-      return downloadDerivative(signedInfo, derivativeUrn)
+    derivatives.map(async (d) => {
+      const signedInfo = await getSignedDerivativeUrl(urn, d.urn, token, region)
+      return downloadDerivative(signedInfo, d.urn, d.name)
     })
   )
 }
 
 interface FileGroup {
   urn: string
-  derivatives: string[]
+  derivatives: DerivativeRef[]
   name?: string
 }
 
 const MERGE_SCOPES = ['none', 'per-model', 'all'] as const
 
+type DerivativeInput = string | { urn: string, name?: string }
+
+interface ExportBodyFileGroup {
+  urn: string
+  derivatives: DerivativeInput[]
+  name?: string
+}
+
 interface ExportBody {
   urn?: string
-  derivatives?: string[]
-  files?: FileGroup[]
+  derivatives?: DerivativeInput[]
+  files?: ExportBodyFileGroup[]
   options?: { mergeScope?: string, zip?: boolean, modelFolders?: boolean }
+}
+
+function normalizeDerivative(input: DerivativeInput): DerivativeRef | null {
+  if (typeof input === 'string') {
+    return input ? { urn: input } : null
+  }
+  if (input && typeof input === 'object' && typeof input.urn === 'string' && input.urn) {
+    return typeof input.name === 'string' && input.name ? { urn: input.urn, name: input.name } : { urn: input.urn }
+  }
+  return null
 }
 
 export interface ParsedExportOptions {
@@ -139,6 +182,7 @@ export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], op
   if (body.files && Array.isArray(body.files)) {
     if (body.files.length === 0) return { error: 'files must be a non-empty array' }
     if (body.files.length > MAX_FILE_GROUPS) return { error: `Too many file groups (max ${MAX_FILE_GROUPS})` }
+    const normalizedGroups: FileGroup[] = []
     for (const group of body.files) {
       if (!group.urn) return { error: 'Each file must have a urn' }
       if (!group.derivatives || !Array.isArray(group.derivatives) || group.derivatives.length === 0) {
@@ -147,8 +191,13 @@ export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], op
       if (group.derivatives.length > MAX_DERIVATIVES_PER_GROUP) {
         return { error: `Too many derivatives per file (max ${MAX_DERIVATIVES_PER_GROUP})` }
       }
+      const normalized = group.derivatives.map(normalizeDerivative).filter((d): d is DerivativeRef => d !== null)
+      if (normalized.length === 0) {
+        return { error: 'Each file must have a non-empty derivatives array' }
+      }
+      normalizedGroups.push({ urn: group.urn, derivatives: normalized, name: group.name })
     }
-    return { fileGroups: body.files, options }
+    return { fileGroups: normalizedGroups, options }
   }
 
   if (!body.urn) return { error: 'urn is required' }
@@ -158,5 +207,9 @@ export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], op
   if (body.derivatives.length > MAX_DERIVATIVES_PER_GROUP) {
     return { error: `Too many derivatives per file (max ${MAX_DERIVATIVES_PER_GROUP})` }
   }
-  return { fileGroups: [{ urn: body.urn, derivatives: body.derivatives }], options }
+  const normalized = body.derivatives.map(normalizeDerivative).filter((d): d is DerivativeRef => d !== null)
+  if (normalized.length === 0) {
+    return { error: 'derivatives must be a non-empty array' }
+  }
+  return { fileGroups: [{ urn: body.urn, derivatives: normalized }], options }
 }
