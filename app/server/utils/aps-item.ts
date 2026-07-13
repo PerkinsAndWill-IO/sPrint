@@ -2,7 +2,7 @@ import { encodeUrn } from './urn'
 
 interface ApsTipData {
   id: string
-  attributes: { displayName?: string, name?: string, versionNumber?: number }
+  attributes: { displayName?: string, name?: string, versionNumber?: number, lastModifiedTime?: string, createTime?: string }
 }
 
 export function normalizeItemUrn(data: ApsTipData) {
@@ -10,6 +10,7 @@ export function normalizeItemUrn(data: ApsTipData) {
   return {
     urn: encodeUrn(versionUrn),
     versionUrn,
-    name: data.attributes.displayName || data.attributes.name || 'Unknown'
+    name: data.attributes.displayName || data.attributes.name || 'Unknown',
+    lastModifiedTime: data.attributes.lastModifiedTime ?? data.attributes.createTime ?? null
   }
 }
