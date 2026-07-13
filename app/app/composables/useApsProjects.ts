@@ -1,4 +1,14 @@
+import type { Ref } from 'vue'
 import type { ApsTreeItem, ApsRevitFile, RevitFileSSEEvent } from '~/types/aps'
+import type { StoredExternalProject } from '~/utils/external-projects'
+import {
+  upsertStoredExternalProject,
+  removeStoredExternalProject,
+  buildStoredExternalProjectNode
+} from '~/utils/external-projects'
+import type { FavoriteProject } from '~/utils/favorites'
+import { isFavorited, toggleFavoriteInList } from '~/utils/favorites'
+import { shouldLoadChildren } from '~/utils/tree-loading'
 
 function makeLoadingPlaceholder(parentId: string): ApsTreeItem {
   return {
@@ -11,7 +21,7 @@ function makeLoadingPlaceholder(parentId: string): ApsTreeItem {
   }
 }
 
-function findAndReplaceChildren(items: ApsTreeItem[], parentId: string, newChildren: ApsTreeItem[]): boolean {
+export function findAndReplaceChildren(items: ApsTreeItem[], parentId: string, newChildren: ApsTreeItem[]): boolean {
   for (const item of items) {
     if (item._apsId === parentId) {
       if (newChildren.length === 0) {
@@ -31,8 +41,19 @@ function findAndReplaceChildren(items: ApsTreeItem[], parentId: string, newChild
 }
 
 export function useApsProjects() {
-  const items = ref<ApsTreeItem[]>([])
+  // MUST be a deep ref: UTree's nested branches only re-render when the
+  // in-place child mutations (findAndReplaceChildren) are reactive — a
+  // shallowRef here makes lazily loaded children invisible until the branch
+  // is collapsed/re-expanded. The `as Ref` cast stops TypeScript from
+  // recursing into UnwrapRef on the recursive tree type (TS2589).
+  const items = ref<ApsTreeItem[]>([]) as Ref<ApsTreeItem[]>
+
+  const expandedKeys = ref<string[]>([])
   const loading = ref(false)
+  // Client-only metadata so added hubs/projects survive reloads; no auth material
+  const storedExternalProjects = useLocalStorage<StoredExternalProject[]>('sprint:external-projects', [])
+  const storedManualHubs = useLocalStorage<string[]>('sprint:manual-hubs', [])
+  const favoriteProjects = useLocalStorage<FavoriteProject[]>('sprint:favorite-projects', [])
   const warnings = ref<string[]>([])
   const searchingProject = ref<string | null>(null)
   const searchProgress = ref('')
@@ -42,6 +63,7 @@ export function useApsProjects() {
   async function loadHubs() {
     loading.value = true
     warnings.value = []
+    expandedKeys.value = []
     try {
       const response = await $fetch('/api/aps/hubs')
       warnings.value = response.warnings || []
@@ -75,6 +97,7 @@ export function useApsProjects() {
       _hubId: hubId,
       _projectId: project.id,
       _region: item._region,
+      _projectName: project.name,
       children: [makeLoadingPlaceholder(`project-${project.id}`)]
     })).sort((a, b) => (a.label ?? '').localeCompare(b.label ?? ''))
 
@@ -95,6 +118,7 @@ export function useApsProjects() {
       _hubId: hubId,
       _projectId: projectId,
       _region: item._region,
+      _projectName: item._projectName ?? item.label,
       children: [makeLoadingPlaceholder(`folder-${folder.id}`)]
     }))
 
@@ -102,7 +126,7 @@ export function useApsProjects() {
     items.value = [...items.value]
   }
 
-  async function loadFolderContents(item: ApsTreeItem) {
+  async function loadFolderContents(item: ApsTreeItem, replaceTargetId?: string) {
     const projectId = item._projectId
     const folderId = item._apsId.replace('folder-', '')
     if (!projectId) return
@@ -117,6 +141,7 @@ export function useApsProjects() {
           _hubId: item._hubId,
           _projectId: projectId,
           _region: item._region,
+          _projectName: item._projectName,
           children: [makeLoadingPlaceholder(`folder-${content.id}`)]
         }
       }
@@ -126,19 +151,21 @@ export function useApsProjects() {
         _apsType: 'item',
         _apsId: `item-${content.id}`,
         _projectId: projectId,
-        _region: item._region
+        _region: item._region,
+        _projectName: item._projectName
       }
     })
 
-    findAndReplaceChildren(items.value, item._apsId, children.length > 0 ? children : [])
+    findAndReplaceChildren(items.value, replaceTargetId ?? item._apsId, children.length > 0 ? children : [])
     items.value = [...items.value]
   }
 
-  async function handleToggle(item: ApsTreeItem, isExpanded: boolean) {
-    // reka-ui reports isExpanded as the state BEFORE the toggle,
-    // so isExpanded=false means the user is expanding the node
-    if (isExpanded || item._loaded) return
+  async function handleToggle(item: ApsTreeItem) {
+    // Loads on any toggle of an unloaded node — see shouldLoadChildren for
+    // why the toggle direction is ignored. _loading dedupes concurrent calls.
+    if (!shouldLoadChildren(item)) return
 
+    item._loading = true
     try {
       switch (item._apsType) {
         case 'hub':
@@ -149,7 +176,7 @@ export function useApsProjects() {
         case 'project':
           // External projects already have children loaded, but if not, use folder contents
           if (item._folderId) {
-            await loadFolderContents({ ...item, _apsId: `folder-${item._folderId}` })
+            await loadFolderContents({ ...item, _apsId: `folder-${item._folderId}` }, item._apsId)
           } else {
             await loadTopFolders(item)
           }
@@ -160,14 +187,28 @@ export function useApsProjects() {
       }
     } catch {
       findAndReplaceChildren(items.value, item._apsId, [{
-        label: 'Failed to load',
+        label: 'Failed to load — collapse and expand to retry',
         icon: 'i-lucide-alert-circle',
         disabled: true,
         _apsType: 'loading',
         _apsId: `error-${item._apsId}`
       }])
+      // findAndReplaceChildren marks the node loaded; undo so the next
+      // toggle retries instead of hanging on the error placeholder
+      item._loaded = false
       items.value = [...items.value]
+    } finally {
+      item._loading = false
     }
+  }
+
+  async function expandNode(node: ApsTreeItem) {
+    if (!expandedKeys.value.includes(node._apsId)) {
+      expandedKeys.value = [...expandedKeys.value, node._apsId]
+    }
+    // Programmatic expansion does not fire the tree's @toggle,
+    // so trigger lazy loading manually
+    if (!node._loaded) await handleToggle(node)
   }
 
   function searchRevitFiles(hubId: string | undefined, projectId: string, folderId?: string) {
@@ -232,7 +273,12 @@ export function useApsProjects() {
       _hubId: id,
       children: [makeLoadingPlaceholder(`hub-${id}`)]
     }
-    items.value = [node]
+    if (!items.value.some(i => i._apsId === node._apsId)) {
+      items.value = [...items.value, node]
+    }
+    storedManualHubs.value = [...new Set([...storedManualHubs.value, id])]
+    expandNode(node)
+    return node
   }
 
   function parseBim360Url(url: string): { projectId: string, folderId: string } | null {
@@ -254,6 +300,7 @@ export function useApsProjects() {
           _apsType: 'folder',
           _apsId: `folder-${content.id}`,
           _projectId: parsed.projectId,
+          _projectName: response.folderName,
           children: [makeLoadingPlaceholder(`folder-${content.id}`)]
         }
       }
@@ -262,7 +309,8 @@ export function useApsProjects() {
         icon: content.isRevitFile ? 'i-lucide-file-box' : 'i-lucide-file',
         _apsType: 'item',
         _apsId: `item-${content.id}`,
-        _projectId: parsed.projectId
+        _projectId: parsed.projectId,
+        _projectName: response.folderName
       }
     })
 
@@ -274,6 +322,7 @@ export function useApsProjects() {
       _apsId: `project-${parsed.projectId}-${parsed.folderId}`,
       _projectId: parsed.projectId,
       _folderId: parsed.folderId,
+      _projectName: response.folderName,
       _loaded: true,
       children
     }
@@ -286,22 +335,148 @@ export function useApsProjects() {
         existingHub.children = [...(existingHub.children || []).filter(c => c._apsType !== 'loading'), projectNode]
       }
     } else {
-      const externalHub: ApsTreeItem = {
-        label: 'External Projects',
-        icon: 'i-lucide-globe',
-        _apsType: 'hub',
-        _apsId: externalHubId,
-        _hubId: 'external',
-        _loaded: true,
-        children: [projectNode]
+      items.value = [...items.value, makeExternalHubNode([projectNode])]
+    }
+    items.value = [...items.value]
+
+    // Show the new project immediately — children are already loaded
+    for (const key of [externalHubId, projectNode._apsId]) {
+      if (!expandedKeys.value.includes(key)) {
+        expandedKeys.value = [...expandedKeys.value, key]
       }
-      items.value = [...items.value, externalHub]
+    }
+
+    storedExternalProjects.value = upsertStoredExternalProject(storedExternalProjects.value, {
+      projectId: parsed.projectId,
+      folderId: parsed.folderId,
+      name: response.folderName
+    })
+  }
+
+  function makeExternalHubNode(children: ApsTreeItem[]): ApsTreeItem {
+    return {
+      label: 'External Projects',
+      icon: 'i-lucide-globe',
+      _apsType: 'hub',
+      _apsId: 'hub-external',
+      _hubId: 'external',
+      _loaded: true,
+      children
+    }
+  }
+
+  /**
+   * Restores saved manual hubs and external projects after loadHubs()
+   * replaced the tree. Builds lazy nodes only — no API calls.
+   */
+  function rehydrateStored() {
+    try {
+      for (const id of storedManualHubs.value) {
+        if (typeof id !== 'string' || !id) continue
+        const apsId = `hub-${id}`
+        if (items.value.some(i => i._apsId === apsId)) continue
+        items.value = [...items.value, {
+          label: `Hub (${id})`,
+          icon: 'i-lucide-building-2',
+          _apsType: 'hub',
+          _apsId: apsId,
+          _hubId: id,
+          children: [makeLoadingPlaceholder(apsId)]
+        }]
+      }
+
+      const projectNodes = storedExternalProjects.value
+        .filter(p => p && p.projectId && p.folderId)
+        .map(buildStoredExternalProjectNode)
+      if (projectNodes.length > 0) {
+        let hub = items.value.find(i => i._apsId === 'hub-external')
+        if (!hub) {
+          hub = makeExternalHubNode([])
+          items.value = [...items.value, hub]
+        }
+        for (const node of projectNodes) {
+          if (!hub.children?.some(c => c._apsId === node._apsId)) {
+            hub.children = [...(hub.children || []).filter(c => c._apsType !== 'loading'), node]
+          }
+        }
+      }
+      items.value = [...items.value]
+    } catch (error) {
+      console.error('Failed to restore saved hubs/projects:', error)
+    }
+  }
+
+  function findNode(nodes: ApsTreeItem[], apsId: string): ApsTreeItem | undefined {
+    for (const node of nodes) {
+      if (node._apsId === apsId) return node
+      const found = node.children && findNode(node.children, apsId)
+      if (found) return found
+    }
+    return undefined
+  }
+
+  function favoriteApsId(f: FavoriteProject): string {
+    return f.folderId ? `project-${f.projectId}-${f.folderId}` : `project-${f.projectId}`
+  }
+
+  function toggleFavorite(node: ApsTreeItem) {
+    if (!node._projectId) return
+    favoriteProjects.value = toggleFavoriteInList(favoriteProjects.value, {
+      projectId: node._projectId,
+      hubId: node._hubId,
+      folderId: node._folderId,
+      label: node.label || node._projectId,
+      region: node._region
+    })
+  }
+
+  function isFavorite(node: ApsTreeItem): boolean {
+    if (!node._projectId) return false
+    return isFavorited(favoriteProjects.value, { projectId: node._projectId, folderId: node._folderId })
+  }
+
+  /**
+   * Expands the tree down to a favorited project, loading the hub's
+   * projects on the way if needed. Returns the project node's key so the
+   * caller can scroll/highlight it, or null if it can't be reached.
+   */
+  async function openFavorite(f: FavoriteProject): Promise<string | null> {
+    const targetId = favoriteApsId(f)
+    // External projects live under the synthetic external hub
+    const hubKey = f.folderId ? 'hub-external' : f.hubId ? `hub-${f.hubId}` : null
+
+    let node = findNode(items.value, targetId)
+    if (!node && hubKey) {
+      const hub = findNode(items.value, hubKey)
+      if (hub) await expandNode(hub)
+      node = findNode(items.value, targetId)
+    }
+    if (!node) return null
+
+    // Hub must be expanded for the project row to be visible, even when
+    // the project node was already loaded
+    if (hubKey && !expandedKeys.value.includes(hubKey)) {
+      expandedKeys.value = [...expandedKeys.value, hubKey]
+    }
+    await expandNode(node)
+    return node._apsId
+  }
+
+  function removeExternalProject(node: ApsTreeItem) {
+    storedExternalProjects.value = removeStoredExternalProject(storedExternalProjects.value, node._apsId)
+    const hub = items.value.find(i => i._apsId === 'hub-external')
+    if (hub) {
+      hub.children = (hub.children || []).filter(c => c._apsId !== node._apsId)
+      if (hub.children.length === 0) {
+        items.value = items.value.filter(i => i._apsId !== 'hub-external')
+      }
     }
     items.value = [...items.value]
   }
 
   return {
     items,
+    expandedKeys,
     loading,
     warnings,
     searchingProject,
@@ -310,8 +485,15 @@ export function useApsProjects() {
     scannedFolders,
     loadHubs,
     handleToggle,
+    expandNode,
     searchRevitFiles,
     addManualHub,
-    addExternalProject
+    addExternalProject,
+    rehydrateStored,
+    removeExternalProject,
+    favoriteProjects,
+    toggleFavorite,
+    isFavorite,
+    openFavorite
   }
 }

@@ -2,9 +2,11 @@
 import type { TreeItemToggleEvent } from 'reka-ui'
 import type { TreeItem } from '@nuxt/ui'
 import type { ApsTreeItem } from '~/types/aps'
+import type { FavoriteProject } from '~/utils/favorites'
 
 const {
   items,
+  expandedKeys,
   loading,
   warnings,
   searchingProject,
@@ -12,15 +14,22 @@ const {
   searchResults,
   loadHubs,
   handleToggle,
+  expandNode,
   searchRevitFiles,
   addManualHub,
-  addExternalProject
+  addExternalProject,
+  rehydrateStored,
+  removeExternalProject,
+  favoriteProjects,
+  toggleFavorite,
+  isFavorite,
+  openFavorite
 } = useApsProjects()
 
 const { isFileSelected, toggleFile, removeFile } = useDerivatives()
 const runtimeConfig = useRuntimeConfig()
 
-const selectedProject = ref<ApsTreeItem | null>(null)
+const selectedProject = shallowRef<ApsTreeItem | null>(null)
 const error = ref<string | null>(null)
 const manualHubId = ref('')
 const showManualInput = ref(false)
@@ -47,27 +56,14 @@ watch(searchingProject, (newVal, oldVal) => {
   }
 })
 
-function filterTree(nodes: ApsTreeItem[], query: string): ApsTreeItem[] {
-  if (!query) return nodes
-  const q = query.toLowerCase()
-  return nodes.reduce<ApsTreeItem[]>((acc, node) => {
-    const labelMatch = node.label?.toLowerCase().includes(q)
-    const filteredChildren = node.children ? filterTree(node.children, query) : []
-    if (labelMatch || filteredChildren.length > 0) {
-      acc.push({ ...node, children: filteredChildren.length > 0 ? filteredChildren : node.children })
-    }
-    return acc
-  }, [])
-}
-
-const filteredItems = computed(() => filterTree(items.value, treeFilter.value))
+const filteredItems = computed<ApsTreeItem[]>(() => filterProjectTree(items.value as ApsTreeItem[], treeFilter.value))
 
 function selectAllResults() {
   const project = selectedProject.value
   if (!project?._projectId) return
   for (const file of searchResults.value) {
     if (!isFileSelected(file.id)) {
-      toggleFile(file.id, project._projectId, file.name, project._region)
+      toggleFile(file.id, project._projectId, file.name, project._region, project._projectName ?? project.label)
     }
   }
 }
@@ -105,11 +101,15 @@ onMounted(async () => {
     await loadHubs()
   } catch (e: unknown) {
     error.value = e instanceof Error ? e.message : 'Failed to load hubs'
+  } finally {
+    // Restore saved manual hubs / external projects after loadHubs
+    // replaced the tree (and even if it failed)
+    rehydrateStored()
   }
 })
 
-function onToggle(e: TreeItemToggleEvent<TreeItem>, item: TreeItem) {
-  handleToggle(item as ApsTreeItem, e.detail.isExpanded)
+function onToggle(_e: TreeItemToggleEvent<TreeItem>, item: TreeItem) {
+  handleToggle(item as ApsTreeItem)
 }
 
 function isRvtItem(item: ApsTreeItem): boolean {
@@ -130,7 +130,7 @@ function onSelect(_e: unknown, item: TreeItem) {
     const itemId = getItemId(apsItem)
     const projectId = apsItem._projectId
     if (!projectId) return
-    toggleFile(itemId, projectId, apsItem.label || '', apsItem._region)
+    toggleFile(itemId, projectId, apsItem.label || '', apsItem._region, apsItem._projectName)
   }
 }
 
@@ -142,10 +142,36 @@ function onSearchRevitFiles(project: ApsTreeItem) {
   searchRevitFiles(project._hubId, project._projectId, project._folderId)
 }
 
+const treeContainer = ref<HTMLElement | null>(null)
+
+async function onFavoriteClick(fav: FavoriteProject) {
+  // An active filter could hide the target row
+  treeFilter.value = ''
+  const apsId = await openFavorite(fav)
+  if (!apsId) return
+
+  // Wait for the expanded rows to render, then scroll + flash the row
+  for (let attempt = 0; attempt < 10; attempt++) {
+    await nextTick()
+    const marker = treeContainer.value?.querySelector(`[data-aps-id="${CSS.escape(apsId)}"]`)
+    const row = marker?.closest('[role="treeitem"]') as HTMLElement | null
+    if (row) {
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      row.classList.add('ring-2', 'ring-primary', 'rounded-md', 'transition')
+      setTimeout(() => row.classList.remove('ring-2', 'ring-primary', 'rounded-md', 'transition'), 1600)
+      return
+    }
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+}
+
 function onSearchResultClick(fileId: string, fileName: string) {
   const project = selectedProject.value
   if (!project?._projectId) return
-  toggleFile(fileId, project._projectId, fileName, project._region)
+  const adding = !isFileSelected(fileId)
+  toggleFile(fileId, project._projectId, fileName, project._region, project._projectName ?? project.label)
+  // Expand the owning project so the tree doesn't look empty
+  if (adding) expandNode(project)
 }
 </script>
 
@@ -282,6 +308,26 @@ function onSearchResultClick(fileId: string, fileName: string) {
         Loading hubs...
       </div>
 
+      <ClientOnly>
+        <div v-if="!loading && favoriteProjects.length > 0" class="flex flex-col gap-1">
+          <p class="text-xs font-medium text-muted">
+            Favorites
+          </p>
+          <div class="flex flex-wrap gap-1">
+            <UButton
+              v-for="fav in favoriteProjects"
+              :key="`${fav.projectId}-${fav.folderId || ''}`"
+              size="xs"
+              variant="subtle"
+              color="neutral"
+              icon="i-lucide-star"
+              :label="fav.label"
+              @click="onFavoriteClick(fav)"
+            />
+          </div>
+        </div>
+      </ClientOnly>
+
       <UInput
         v-if="!loading && items.length > 0"
         v-model="treeFilter"
@@ -303,68 +349,90 @@ function onSearchResultClick(fileId: string, fileName: string) {
         </template>
       </UInput>
 
-      <UTree
-        v-if="!loading"
-        :items="filteredItems"
-        :get-key="(item: TreeItem) => (item as ApsTreeItem)._apsId"
-        expanded-icon="i-lucide-folder-open"
-        collapsed-icon="i-lucide-folder"
-        color="neutral"
-        @toggle="onToggle"
-        @select="onSelect"
-      >
-        <template #loading-leading>
-          <UIcon name="i-lucide-loader" class="animate-spin shrink-0" />
-        </template>
-        <template #project-trailing="{ item }">
-          <div @click.stop>
-            <UButton
-              size="xs"
-              variant="ghost"
-              color="neutral"
-              icon="i-lucide-file-search"
-              class="whitespace-nowrap"
-              :loading="searchingProject === (item as ApsTreeItem)._projectId"
-              @click="onSearchRevitFiles(item as ApsTreeItem)"
-            >
-              {{ searchingProject === (item as ApsTreeItem)._projectId ? 'Scanning...' : 'Find .rvt' }}
-            </UButton>
-          </div>
-        </template>
-        <template #item-trailing="{ item }">
-          <template v-if="isRvtItem(item as ApsTreeItem)">
-            <UBadge
-              size="sm"
-              color="success"
-              variant="subtle"
-            >
-              RVT
-            </UBadge>
-            <div @click.stop>
+      <div v-if="!loading" ref="treeContainer">
+        <UTree
+          v-model:expanded="expandedKeys"
+          :items="filteredItems"
+          :get-key="(item: TreeItem) => (item as ApsTreeItem)._apsId"
+          expanded-icon="i-lucide-folder-open"
+          collapsed-icon="i-lucide-folder"
+          color="neutral"
+          @toggle="onToggle"
+          @select="onSelect"
+        >
+          <template #loading-leading>
+            <UIcon name="i-lucide-loader" class="animate-spin shrink-0" />
+          </template>
+          <template #project-trailing="{ item }">
+            <span :data-aps-id="(item as ApsTreeItem)._apsId" class="hidden" aria-hidden="true" />
+            <div class="flex items-center" @click.stop>
               <UButton
                 size="xs"
                 variant="ghost"
                 color="neutral"
-                icon="i-lucide-external-link"
-                :to="getAccUrl(item as ApsTreeItem)"
-                target="_blank"
-              />
-            </div>
-            <div @click.stop>
-              <UCheckbox
-                :model-value="isFileSelected(getItemId(item as ApsTreeItem))"
-                size="sm"
-                @update:model-value="toggleFile(
-                  getItemId(item as ApsTreeItem),
-                  (item as ApsTreeItem)._projectId || '',
-                  (item as ApsTreeItem).label || '',
-                  (item as ApsTreeItem)._region
-                )"
-              />
+                icon="i-lucide-file-search"
+                class="whitespace-nowrap"
+                :loading="searchingProject === (item as ApsTreeItem)._projectId"
+                @click="onSearchRevitFiles(item as ApsTreeItem)"
+              >
+                {{ searchingProject === (item as ApsTreeItem)._projectId ? 'Scanning...' : 'Find .rvt' }}
+              </UButton>
+              <UTooltip :text="isFavorite(item as ApsTreeItem) ? 'Remove from favorites' : 'Add to favorites'">
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  :color="isFavorite(item as ApsTreeItem) ? 'warning' : 'neutral'"
+                  icon="i-lucide-star"
+                  @click="toggleFavorite(item as ApsTreeItem)"
+                />
+              </UTooltip>
+              <UTooltip v-if="(item as ApsTreeItem)._folderId" text="Remove project">
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-lucide-x"
+                  @click="removeExternalProject(item as ApsTreeItem)"
+                />
+              </UTooltip>
             </div>
           </template>
-        </template>
-      </UTree>
+          <template #item-trailing="{ item }">
+            <template v-if="isRvtItem(item as ApsTreeItem)">
+              <UBadge
+                size="sm"
+                color="success"
+                variant="subtle"
+              >
+                RVT
+              </UBadge>
+              <div @click.stop>
+                <UButton
+                  size="xs"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-lucide-external-link"
+                  :to="getAccUrl(item as ApsTreeItem)"
+                  target="_blank"
+                />
+              </div>
+              <div @click.stop>
+                <UCheckbox
+                  :model-value="isFileSelected(getItemId(item as ApsTreeItem))"
+                  size="sm"
+                  @update:model-value="toggleFile(
+                    getItemId(item as ApsTreeItem),
+                    (item as ApsTreeItem)._projectId || '',
+                    (item as ApsTreeItem).label || '',
+                    (item as ApsTreeItem)._region,
+                    (item as ApsTreeItem)._projectName
+                  )"
+                />
+              </div>
+            </template>
+          </template>
+        </UTree>
+      </div>
     </div>
 
     <!-- Collapsible search results -->

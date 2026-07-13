@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { ApsTreeItem } from '~/types/aps'
+import { filterProjectTree } from '~/utils/tree-filter'
 
 // Replicate the component's pure logic for testing
 function isRvtItem(item: ApsTreeItem): boolean {
@@ -64,61 +65,77 @@ function buildHubItem(): ApsTreeItem {
   }
 }
 
-// Replicate the component's filterTree function for testing
-function filterTree(nodes: ApsTreeItem[], query: string): ApsTreeItem[] {
-  if (!query) return nodes
-  const q = query.toLowerCase()
-  return nodes.reduce<ApsTreeItem[]>((acc, node) => {
-    const labelMatch = node.label?.toLowerCase().includes(q)
-    const filteredChildren = node.children ? filterTree(node.children, query) : []
-    if (labelMatch || filteredChildren.length > 0) {
-      acc.push({ ...node, children: filteredChildren.length > 0 ? filteredChildren : node.children })
-    }
-    return acc
-  }, [])
-}
-
-describe('filterTree', () => {
-  it('returns all items when query is empty', () => {
-    const items = [buildHubItem(), buildProjectItem()]
-    expect(filterTree(items, '')).toBe(items)
-  })
-
-  it('matches items by label substring (case-insensitive)', () => {
-    const items = [
-      buildHubItem(),
-      { ...buildProjectItem(), label: 'Alpha Project' },
-      { ...buildProjectItem(), label: 'Beta Project', _apsId: 'project-beta' }
-    ]
-    const result = filterTree(items, 'alpha')
-    expect(result).toHaveLength(1)
-    expect(result[0].label).toBe('Alpha Project')
-  })
-
-  it('preserves parent path to matching descendants', () => {
-    const hub: ApsTreeItem = {
+describe('filterProjectTree', () => {
+  function buildHubWithProjects(): ApsTreeItem {
+    return {
       ...buildHubItem(),
       children: [
-        {
-          ...buildProjectItem(),
-          label: 'Unrelated',
-          _apsId: 'project-unrelated',
-          children: [{ ...buildRvtItem(), label: 'DeepMatch.rvt', _apsId: 'item-deep' }]
-        }
+        { ...buildProjectItem(), label: 'Alpha Project', _apsId: 'project-alpha' },
+        { ...buildProjectItem(), label: 'Beta Project', _apsId: 'project-beta' }
       ]
     }
-    const result = filterTree([hub], 'DeepMatch')
+  }
+
+  it('returns all items when query is empty', () => {
+    const items = [buildHubWithProjects()]
+    expect(filterProjectTree(items, '')).toBe(items)
+  })
+
+  it('matches projects by label substring (case-insensitive)', () => {
+    const result = filterProjectTree([buildHubWithProjects()], 'ALPHA')
     expect(result).toHaveLength(1)
-    expect(result[0].label).toBe('My Hub')
-    expect(result[0].children).toHaveLength(1)
-    expect(result[0].children![0].label).toBe('Unrelated')
-    expect(result[0].children![0].children).toHaveLength(1)
-    expect(result[0].children![0].children![0].label).toBe('DeepMatch.rvt')
+    expect(result[0]!.children).toHaveLength(1)
+    expect(result[0]!.children![0]!.label).toBe('Alpha Project')
+  })
+
+  it('matched projects keep their original children (normal folder tree on expand)', () => {
+    const project = {
+      ...buildProjectItem(),
+      label: 'Alpha Project',
+      _apsId: 'project-alpha',
+      children: [buildFolderItem()]
+    }
+    const hub = { ...buildHubItem(), children: [project] }
+    const result = filterProjectTree([hub], 'alpha')
+    expect(result[0]!.children![0]!.children).toBe(project.children)
+  })
+
+  it('does not match nested folder or file labels', () => {
+    const project = {
+      ...buildProjectItem(),
+      label: 'Unrelated',
+      _apsId: 'project-unrelated',
+      children: [
+        { ...buildFolderItem(), label: 'DeepMatch Folder' },
+        { ...buildRvtItem(), label: 'DeepMatch.rvt', _apsId: 'item-deep' }
+      ]
+    }
+    const hub = { ...buildHubItem(), children: [project] }
+    expect(filterProjectTree([hub], 'DeepMatch')).toEqual([])
+  })
+
+  it('hub label match keeps the original node with all projects', () => {
+    const hub = buildHubWithProjects()
+    const result = filterProjectTree([hub], 'my hub')
+    expect(result).toHaveLength(1)
+    expect(result[0]).toBe(hub)
+  })
+
+  it('keeps unexpanded hubs (loading placeholder children)', () => {
+    const hub: ApsTreeItem = {
+      ...buildHubItem(),
+      label: 'Other Hub',
+      children: [{ label: 'Loading...', _apsType: 'loading', _apsId: 'loading-hub' }]
+    }
+    const result = filterProjectTree([hub], 'alpha')
+    expect(result).toHaveLength(1)
+    expect(result[0]).toBe(hub)
   })
 
   it('returns empty array when nothing matches', () => {
-    const items = [buildHubItem(), buildProjectItem()]
-    expect(filterTree(items, 'zzz-no-match')).toEqual([])
+    const hub = buildHubWithProjects()
+    hub.label = 'Loaded Hub'
+    expect(filterProjectTree([hub], 'zzz-no-match')).toEqual([])
   })
 })
 
