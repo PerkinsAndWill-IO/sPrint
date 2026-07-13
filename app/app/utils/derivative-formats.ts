@@ -5,10 +5,10 @@ export const FORMAT_LABELS: Record<DerivativeFormat, string> = {
   dwg: 'DWG',
   dwf: 'DWF',
   ifc: 'IFC',
-  thumbnail: 'Thumbnail',
-  aec: 'AEC Data',
-  sdb: 'SDB',
-  svf: 'SVF',
+  thumbnail: 'Thumbnails / Previews',
+  aec: 'Design Data (AEC)',
+  sdb: 'Model Data',
+  svf: '3D Views',
   other: 'Other'
 }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { format } from 'date-fns'
 import type { AccordionItem } from '@nuxt/ui'
-import type { DerivativeFormat } from '~/types/derivatives'
-import { getFormatCounts } from '~/utils/derivative-formats'
+import type { Derivative, DerivativeFormat } from '~/types/derivatives'
 
 const {
   selectedFilesList,
@@ -56,6 +56,18 @@ function getAccFileUrl(itemId: string): string {
   if (!file) return '#'
   return buildAccProjectUrl(file.projectId, file.region, file.itemId)
 }
+
+function pdfCount(derivatives: Derivative[]): number {
+  return derivatives.filter(d => d.format === 'pdf').length
+}
+
+function lastPublished(itemId: string): string | null {
+  const t = fileState(itemId)?.lastModifiedTime
+  if (!t) return null
+  const parsed = Date.parse(t)
+  if (Number.isNaN(parsed)) return null
+  return format(new Date(parsed), 'PPp')
+}
 </script>
 
 <template>
@@ -85,6 +97,9 @@ function getAccFileUrl(itemId: string): string {
             @click.stop
           />
         </div>
+        <span v-if="lastPublished(item.value!)" class="text-xs text-muted">
+          Last published: {{ lastPublished(item.value!) }}
+        </span>
         <div class="flex flex-wrap gap-1 min-h-5">
           <template v-if="fileState(item.value!)?.loading">
             <USkeleton class="h-5 w-14 rounded-full" />
@@ -94,13 +109,19 @@ function getAccFileUrl(itemId: string): string {
           </template>
           <template v-else-if="fileState(item.value!)?.derivatives.length">
             <UBadge
-              v-for="fc in getFormatCounts(fileState(item.value!)!.derivatives)"
-              :key="fc.format"
               size="xs"
-              :color="fc.color"
+              color="primary"
               variant="subtle"
             >
-              {{ fc.count }} {{ fc.label }}
+              {{ pdfCount(fileState(item.value!)!.derivatives) }} PDF{{ pdfCount(fileState(item.value!)!.derivatives) === 1 ? '' : 's' }}
+            </UBadge>
+            <UBadge
+              v-if="fileState(item.value!)!.derivatives.length - pdfCount(fileState(item.value!)!.derivatives) > 0"
+              size="xs"
+              color="neutral"
+              variant="subtle"
+            >
+              +{{ fileState(item.value!)!.derivatives.length - pdfCount(fileState(item.value!)!.derivatives) }} advanced
             </UBadge>
           </template>
         </div>
@@ -149,10 +170,6 @@ function getAccFileUrl(itemId: string): string {
             icon="i-lucide-alert-triangle"
             :title="file.error"
           />
-        </div>
-
-        <div v-else-if="file.derivatives.length === 0" class="py-4 text-center text-sm text-muted">
-          No derivatives found in this model.
         </div>
 
         <div v-else>
