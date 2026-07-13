@@ -46,12 +46,12 @@ definePageMeta({
           </UBadge>
         </template>
         <template #trailing>
-          <UTooltip v-if="selectedFilesList.length > 0" text="Clear all">
+          <UTooltip v-if="selectedFilesList.length > 0" text="Clear selection">
             <UButton
-              icon="i-lucide-trash-2"
+              icon="i-lucide-eraser"
               size="xs"
               variant="ghost"
-              color="error"
+              color="neutral"
               @click="clearAll"
             />
           </UTooltip>

@@ -52,9 +52,11 @@ export type PdfViewSet = ViewSet
 export interface SelectedFileState {
   itemId: string
   projectId: string
+  projectName?: string
   name: string
   urn: string
   region?: string
+  lastModifiedTime?: string | null
   loading: boolean
   error: string | null
   derivatives: Derivative[]

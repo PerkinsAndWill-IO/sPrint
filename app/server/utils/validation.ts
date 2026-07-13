@@ -46,3 +46,19 @@ export function sanitizeHeaderFilename(name: string): string {
   const sanitized = name.replace(/[\r\n"\\]/g, '').trim()
   return sanitized || 'download'
 }
+
+const DEFAULT_DOWNLOAD_BASE_NAME = 'sPrint Download'
+
+/**
+ * Resolves the base name for exported downloads from the client-provided
+ * filename (model or project name). Strips header-unsafe and path
+ * characters; falls back to a generic name.
+ */
+export function resolveDownloadBaseName(requested: unknown): string {
+  if (typeof requested !== 'string' || !requested.trim()) return DEFAULT_DOWNLOAD_BASE_NAME
+  const sanitized = requested
+    .replace(/[\r\n"\\]/g, '')
+    .replace(/[<>:/|?*]/g, '_')
+    .trim()
+  return sanitized || DEFAULT_DOWNLOAD_BASE_NAME
+}

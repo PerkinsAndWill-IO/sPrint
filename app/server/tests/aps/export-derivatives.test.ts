@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseExportBody, sanitizeFolderName } from '../../utils/aps-download'
+import { resolveDownloadBaseName } from '../../utils/validation'
 
 describe('export-derivatives endpoint', () => {
   describe('legacy single-file request validation', () => {
@@ -157,6 +158,27 @@ describe('export-derivatives endpoint', () => {
 
     it('trims whitespace', () => {
       expect(sanitizeFolderName('  hello  ')).toBe('hello')
+    })
+  })
+
+  describe('resolveDownloadBaseName', () => {
+    it('uses the provided filename', () => {
+      expect(resolveDownloadBaseName('Tower A')).toBe('Tower A')
+    })
+
+    it('strips header-unsafe characters (CRLF, quotes, backslashes)', () => {
+      expect(resolveDownloadBaseName('bad"\r\nname\\')).toBe('badname')
+    })
+
+    it('replaces path separators and reserved characters', () => {
+      expect(resolveDownloadBaseName('a/b:c*d')).toBe('a_b_c_d')
+    })
+
+    it('defaults to "sPrint Download" when missing, empty, or non-string', () => {
+      expect(resolveDownloadBaseName(undefined)).toBe('sPrint Download')
+      expect(resolveDownloadBaseName('')).toBe('sPrint Download')
+      expect(resolveDownloadBaseName('   ')).toBe('sPrint Download')
+      expect(resolveDownloadBaseName(42)).toBe('sPrint Download')
     })
   })
 })
