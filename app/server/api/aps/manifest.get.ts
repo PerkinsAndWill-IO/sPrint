@@ -1,5 +1,5 @@
 import type { ApsManifest } from '~/types/derivatives'
-import { filterDerivatives, extractViewSets, checkRevitVersion } from '../../utils/derivatives'
+import { normalizeManifestResponse, emptyManifestResponse } from '../../utils/derivatives'
 import { validateUrn, validateRegion } from '../../utils/validation'
 
 export default eventHandler(async (event) => {
@@ -14,32 +14,23 @@ export default eventHandler(async (event) => {
 
   const token = await getApsAccessToken(event)
 
-  const manifest = await apsFetch<ApsManifest>(
-    token,
-    modelDerivativePath(`/modelderivative/v2/designdata/${urn}/manifest`, region),
-    region
-  )
-
-  const firstDerivative = manifest.derivatives[0]
-  if (!firstDerivative) {
-    return {
-      modelName: 'Unknown',
-      derivatives: [],
-      viewSets: [],
-      revitVersionSupported: false,
-      revitVersion: null
+  let manifest: ApsManifest
+  try {
+    manifest = await apsFetch<ApsManifest>(
+      token,
+      modelDerivativePath(`/modelderivative/v2/designdata/${urn}/manifest`, region),
+      region
+    )
+  } catch (err) {
+    // No manifest = model has no published derivatives; a valid empty state,
+    // not a server error
+    if ((err as { statusCode?: number }).statusCode === 404) {
+      console.info(`[manifest] 404 from APS — no manifest/published derivatives (urn=${urn.slice(0, 24)}..., region=${region || 'US'})`)
+      return emptyManifestResponse()
     }
+    // Unexpected APS/server error — propagate (auth handling relies on status)
+    throw err
   }
 
-  const derivatives = filterDerivatives(firstDerivative.children)
-  const viewSets = extractViewSets(derivatives)
-  const { supported: revitVersionSupported, version: revitVersion } = checkRevitVersion(firstDerivative)
-
-  return {
-    modelName: firstDerivative.name,
-    derivatives,
-    viewSets,
-    revitVersionSupported,
-    revitVersion
-  }
+  return normalizeManifestResponse(manifest)
 })

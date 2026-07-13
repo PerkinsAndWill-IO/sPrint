@@ -21,6 +21,37 @@ import {
   mockDerivativeNoVersion
 } from '../fixtures/manifest'
 
+describe('filterDerivatives defensive input handling', () => {
+  it('returns empty array for undefined, null, or non-array children', () => {
+    expect(filterDerivatives(undefined)).toEqual([])
+    expect(filterDerivatives(null)).toEqual([])
+    expect(filterDerivatives('bogus' as never)).toEqual([])
+    expect(filterDerivatives({} as never)).toEqual([])
+  })
+
+  it('skips null or non-object entries in children', () => {
+    const children = [null, undefined, 42, 'str', mockPdfChild1] as never[]
+    const result = filterDerivatives(children)
+    expect(result).toHaveLength(1)
+    expect(result[0].guid).toBe('guid-a001-pdf')
+  })
+
+  it('tolerates a child whose children is not an array', () => {
+    const malformed = { ...mock3dChild, children: { bogus: true } as never }
+    const result = filterDerivatives([malformed])
+    // Falls back to the child's own urn; no throw
+    expect(result).toHaveLength(1)
+    expect(result[0].format).toBe('svf')
+  })
+
+  it('tolerates null entries inside a child children array', () => {
+    const malformed = { ...mockPdfChild1, children: [null, ...mockPdfChild1.children!] as never }
+    const result = filterDerivatives([malformed])
+    expect(result).toHaveLength(1)
+    expect(result[0].format).toBe('pdf')
+  })
+})
+
 describe('filterPdfDerivatives', () => {
   it('extracts pdf-page derivatives from children that have them', () => {
     const result = filterPdfDerivatives([mockPdfChild1, mockPdfChild2])
