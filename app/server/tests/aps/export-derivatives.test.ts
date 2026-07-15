@@ -174,11 +174,11 @@ describe('export-derivatives endpoint', () => {
       expect(resolveDownloadBaseName('a/b:c*d')).toBe('a_b_c_d')
     })
 
-    it('defaults to "sPrint Download" when missing, empty, or non-string', () => {
-      expect(resolveDownloadBaseName(undefined)).toBe('sPrint Download')
-      expect(resolveDownloadBaseName('')).toBe('sPrint Download')
-      expect(resolveDownloadBaseName('   ')).toBe('sPrint Download')
-      expect(resolveDownloadBaseName(42)).toBe('sPrint Download')
+    it('defaults to "sPRINT Download" when missing, empty, or non-string', () => {
+      expect(resolveDownloadBaseName(undefined)).toBe('sPRINT Download')
+      expect(resolveDownloadBaseName('')).toBe('sPRINT Download')
+      expect(resolveDownloadBaseName('   ')).toBe('sPRINT Download')
+      expect(resolveDownloadBaseName(42)).toBe('sPRINT Download')
     })
   })
 })

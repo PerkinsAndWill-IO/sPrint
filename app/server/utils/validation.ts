@@ -42,12 +42,21 @@ export function validateRegion(value: string | undefined): string | undefined {
   return regionSchema.parse(value)
 }
 
-export function sanitizeHeaderFilename(name: string): string {
-  const sanitized = name.replace(/[\r\n"\\]/g, '').trim()
-  return sanitized || 'download'
+/**
+ * Builds an RFC 6266 Content-Disposition value that is always Latin-1-safe.
+ * Node rejects header values with code points above 0xFF (ERR_INVALID_CHAR),
+ * so non-ASCII filenames (CJK, em-dashes, smart quotes) must never appear
+ * raw in the header. Modern browsers read the real name from the RFC 5987
+ * filename* parameter; the plain filename is an ASCII fallback.
+ */
+export function contentDisposition(filename: string, type: 'attachment' | 'inline' = 'attachment'): string {
+  const ascii = filename.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '').trim() || 'download'
+  const encoded = encodeURIComponent(filename).replace(/['()*]/g, c =>
+    '%' + c.charCodeAt(0).toString(16).toUpperCase())
+  return `${type}; filename="${ascii}"; filename*=UTF-8''${encoded}`
 }
 
-const DEFAULT_DOWNLOAD_BASE_NAME = 'sPrint Download'
+const DEFAULT_DOWNLOAD_BASE_NAME = 'sPRINT Download'
 
 /**
  * Resolves the base name for exported downloads from the client-provided
