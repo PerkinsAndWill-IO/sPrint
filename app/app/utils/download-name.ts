@@ -1,4 +1,4 @@
-export const DEFAULT_DOWNLOAD_NAME = 'sPrint Download'
+export const DEFAULT_DOWNLOAD_NAME = 'sPRINT Download'
 
 /**
  * Base name for a download: single model uses the Revit model name,

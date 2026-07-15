@@ -17,7 +17,7 @@ definePageMeta({
     :max-size="70"
   >
     <template #header>
-      <UDashboardNavbar title="SPRINT">
+      <UDashboardNavbar title="sPRINT">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>

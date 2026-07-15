@@ -18,7 +18,7 @@ useHead({
   }
 })
 
-const title = 'sPrint'
+const title = 'sPRINT'
 const description = 'Seamless Autodesk Cloud Printing'
 
 useSeoMeta({
