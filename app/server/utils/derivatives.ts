@@ -1,4 +1,56 @@
-import type { ApsManifestChild, ApsManifestDerivative, Derivative, DerivativeFormat, ViewSet } from '~/types/derivatives'
+import type { ApsManifest, ApsManifestChild, ApsManifestDerivative, Derivative, DerivativeFormat, ViewSet } from '~/types/derivatives'
+
+export interface ManifestResponse {
+  modelName: string
+  derivatives: Derivative[]
+  viewSets: ViewSet[]
+  revitVersionSupported: boolean
+  revitVersion: number | null
+}
+
+export function emptyManifestResponse(): ManifestResponse {
+  return {
+    modelName: 'Unknown',
+    derivatives: [],
+    viewSets: [],
+    revitVersionSupported: false,
+    revitVersion: null
+  }
+}
+
+/**
+ * Turns a raw APS manifest into the API response. Defensive: a missing,
+ * empty, or malformed manifest yields an empty response (the UI renders
+ * its "no published print sets" state) instead of throwing.
+ */
+export function normalizeManifestResponse(manifest: ApsManifest | null | undefined): ManifestResponse {
+  if (!manifest) return emptyManifestResponse()
+  if (!Array.isArray(manifest.derivatives)) {
+    console.warn('[manifest] Malformed manifest: derivatives is not an array')
+    return emptyManifestResponse()
+  }
+
+  const firstDerivative = manifest.derivatives[0]
+  if (!firstDerivative || typeof firstDerivative !== 'object') {
+    // Valid condition: nothing published for this model yet
+    return emptyManifestResponse()
+  }
+  if (firstDerivative.children !== undefined && !Array.isArray(firstDerivative.children)) {
+    console.warn('[manifest] Malformed manifest: derivative children is not an array')
+  }
+
+  const derivatives = filterDerivatives(firstDerivative.children)
+  const viewSets = extractViewSets(derivatives)
+  const { supported: revitVersionSupported, version: revitVersion } = checkRevitVersion(firstDerivative)
+
+  return {
+    modelName: firstDerivative.name || 'Unknown',
+    derivatives,
+    viewSets,
+    revitVersionSupported,
+    revitVersion
+  }
+}
 
 function normalizeViewSets(viewSets: string | string[] | undefined): string[] {
   if (!viewSets) return []
@@ -36,12 +88,16 @@ export function resolveMimeType(format: DerivativeFormat): string {
   return map[format]
 }
 
-export function filterDerivatives(children: ApsManifestChild[], formats?: DerivativeFormat[]): Derivative[] {
+export function filterDerivatives(children: ApsManifestChild[] | null | undefined, formats?: DerivativeFormat[]): Derivative[] {
   const result: Derivative[] = []
+  if (!Array.isArray(children)) return result
 
   for (const child of children) {
+    if (!child || typeof child !== 'object') continue
+    const subChildren = Array.isArray(child.children) ? child.children.filter(c => c && typeof c === 'object') : []
+
     // Check for pdf-page sub-children (existing pattern)
-    const pdfChild = child.children?.find(c => c.role === 'pdf-page')
+    const pdfChild = subChildren.find(c => c.role === 'pdf-page')
     if (pdfChild) {
       const format: DerivativeFormat = 'pdf'
       if (formats && !formats.includes(format)) continue
@@ -74,8 +130,8 @@ export function filterDerivatives(children: ApsManifestChild[], formats?: Deriva
     }
 
     // Recurse into children for nested derivatives (non-pdf-page)
-    if (child.children) {
-      for (const sub of child.children) {
+    if (subChildren.length > 0) {
+      for (const sub of subChildren) {
         if (sub.role === 'pdf-page') continue // Already handled
         if (!sub.urn) continue
         const format = resolveFormat(sub)

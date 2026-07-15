@@ -23,12 +23,13 @@ export function useDerivatives() {
 
   const hasSelections = computed(() => totalSelectedCount.value > 0)
 
-  async function addFile(itemId: string, projectId: string, name: string, region?: string) {
+  async function addFile(itemId: string, projectId: string, name: string, region?: string, projectName?: string) {
     if (selectedFiles.has(itemId)) return
 
     selectedFiles.set(itemId, {
       itemId,
       projectId,
+      projectName,
       name,
       urn: '',
       region,
@@ -49,6 +50,7 @@ export function useDerivatives() {
       if (!entry) return
       entry.urn = itemResult.urn
       entry.name = itemResult.name || name
+      entry.lastModifiedTime = itemResult.lastModifiedTime
 
       const manifestResult = await $fetch('/api/aps/manifest', {
         params: { urn: itemResult.urn, region }
@@ -59,7 +61,9 @@ export function useDerivatives() {
       entry.revitVersion = manifestResult.revitVersion
       entry.revitVersionSupported = manifestResult.revitVersionSupported
 
-      if (!manifestResult.revitVersionSupported) {
+      // Only flag unsupported versions when there is content; an empty
+      // manifest (nothing published) should show the empty state instead
+      if (!manifestResult.revitVersionSupported && manifestResult.derivatives.length > 0) {
         entry.error = `Revit version ${manifestResult.revitVersion || 'unknown'} is not supported. Requires 2022 or later.`
       }
     } catch (e: unknown) {
@@ -83,11 +87,11 @@ export function useDerivatives() {
     return selectedFiles.has(itemId)
   }
 
-  function toggleFile(itemId: string, projectId: string, name: string, region?: string) {
+  function toggleFile(itemId: string, projectId: string, name: string, region?: string, projectName?: string) {
     if (selectedFiles.has(itemId)) {
       removeFile(itemId)
     } else {
-      addFile(itemId, projectId, name, region)
+      addFile(itemId, projectId, name, region, projectName)
     }
   }
 
@@ -137,11 +141,14 @@ export function useDerivatives() {
       .map(file => ({
         urn: file.urn,
         derivatives: file.derivatives.filter(d => d.active).map(d => ({ urn: d.urn, name: d.name })),
-        name: file.name.replace(/\.rvt$/i, '')
+        name: file.name.replace(/\.rvt$/i, ''),
+        projectName: file.projectName
       }))
       .filter(f => f.derivatives.length > 0)
 
     if (filesToExport.length === 0) return
+
+    const downloadBaseName = computeDownloadBaseName(filesToExport)
 
     exporting.value = true
     exportError.value = null
@@ -167,6 +174,7 @@ export function useDerivatives() {
         body: JSON.stringify({
           files: filesToExport,
           region: exportRegion,
+          filename: downloadBaseName,
           options: { mergeScope: exportOptions.mergeScope, zip: exportOptions.zip, modelFolders: exportOptions.modelFolders }
         })
       })
@@ -176,20 +184,19 @@ export function useDerivatives() {
         return
       }
       if (!response.ok) {
-        throw new Error(`Export failed: ${response.statusText}`)
+        throw new Error(`Download failed: ${response.statusText}`)
       }
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       const contentType = response.headers.get('Content-Type') || ''
-      let filename = 'derivatives.zip'
+      // Client-computed name wins (avoids non-ASCII header issues);
+      // Content-Disposition is the fallback for unexpected content types
+      let filename = `${downloadBaseName}.zip`
       if (contentType.includes('application/pdf')) {
-        filename = 'derivatives.pdf'
-      } else if (contentType.includes('application/zip')) {
-        filename = 'derivatives.zip'
-      } else {
-        // Extract filename from Content-Disposition if available
+        filename = `${downloadBaseName}.pdf`
+      } else if (!contentType.includes('application/zip')) {
         const disposition = response.headers.get('Content-Disposition') || ''
         const match = disposition.match(/filename="?([^";\s]+)"?/)
         if (match) filename = match[1]!
@@ -206,9 +213,9 @@ export function useDerivatives() {
         format: contentType.includes('application/pdf') ? 'pdf' : 'zip'
       })
     } catch (e: unknown) {
-      exportError.value = e instanceof Error ? e.message : 'Export failed'
+      exportError.value = e instanceof Error ? e.message : 'Download failed'
       posthog?.capture('export_failed', {
-        error: e instanceof Error ? e.message : 'Export failed'
+        error: e instanceof Error ? e.message : 'Download failed'
       })
     } finally {
       exporting.value = false

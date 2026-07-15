@@ -2,7 +2,7 @@ import archiver from 'archiver'
 import { PassThrough } from 'node:stream'
 import { parseExportBody, sanitizeFolderName, inferMimeType } from '../../utils/aps-download'
 import { mergePdfBuffers } from '../../utils/pdf-merge'
-import { validateRegion, sanitizeHeaderFilename } from '../../utils/validation'
+import { validateRegion, sanitizeHeaderFilename, resolveDownloadBaseName } from '../../utils/validation'
 
 interface DerivativeFile {
   name: string
@@ -21,6 +21,10 @@ export default eventHandler(async (event) => {
   const rawToken = await getApsAccessToken(event)
 
   const region = validateRegion(body.region as string | undefined)
+
+  // Base name for the downloaded file(s); provided by the client
+  // (model or project name), falls back to a generic name
+  const baseName = resolveDownloadBaseName(body.filename)
 
   // Download all derivatives from all file groups in parallel
   const allDownloads = await Promise.all(
@@ -58,7 +62,7 @@ export default eventHandler(async (event) => {
     const mergedFiles: DerivativeFile[] = []
     if (pdfs.length > 0) {
       const merged = await mergePdfBuffers(pdfs.map(f => f.data))
-      mergedFiles.push({ name: 'merged.pdf', data: merged })
+      mergedFiles.push({ name: `${baseName}.pdf`, data: merged })
     }
     mergedFiles.push(...others)
     outputGroups = [{ name: 'merged', files: mergedFiles }]
@@ -108,12 +112,12 @@ export default eventHandler(async (event) => {
       } else {
         const allBuffers = outputGroups.flatMap(g => g.files.map(f => f.data))
         const merged = await mergePdfBuffers(allBuffers)
-        singleFile = { name: 'merged.pdf', data: merged }
+        singleFile = { name: `${baseName}.pdf`, data: merged }
       }
 
       setResponseHeaders(event, {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="derivatives.pdf"'
+        'Content-Disposition': `attachment; filename="${baseName}.pdf"`
       })
       return singleFile.data
     }
@@ -134,7 +138,7 @@ export default eventHandler(async (event) => {
   // zip: true (or forced for mixed content)
   setResponseHeaders(event, {
     'Content-Type': 'application/zip',
-    'Content-Disposition': 'attachment; filename="derivatives.zip"'
+    'Content-Disposition': `attachment; filename="${baseName}.zip"`
   })
 
   const archive = archiver('zip', { zlib: { level: 5 } })

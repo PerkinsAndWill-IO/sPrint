@@ -9,6 +9,8 @@ interface ApsTipResponse {
       displayName?: string
       name?: string
       versionNumber?: number
+      lastModifiedTime?: string
+      createTime?: string
     }
   }
 }

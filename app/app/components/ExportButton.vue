@@ -19,12 +19,12 @@ const selectionIsPdfOnly = computed(() => {
 })
 
 const exportLabel = computed(() => {
-  if (exporting.value) return 'Exporting...'
+  if (exporting.value) return 'Preparing download...'
   const count = totalSelectedCount.value
   if (selectionIsPdfOnly.value) {
-    return `Export ${count} PDF${count === 1 ? '' : 's'}`
+    return `Download ${count} PDF${count === 1 ? '' : 's'}`
   }
-  return `Export ${count} file${count === 1 ? '' : 's'}`
+  return `Download ${count} file${count === 1 ? '' : 's'}`
 })
 </script>
 
@@ -91,7 +91,7 @@ const exportLabel = computed(() => {
       color="success"
       variant="subtle"
       icon="i-lucide-check-circle"
-      title="Export complete"
+      title="Download complete"
       description="Your download should start automatically."
     />
   </div>

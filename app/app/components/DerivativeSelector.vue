@@ -16,26 +16,35 @@ const emit = defineEmits<{
 }>()
 
 const search = ref('')
-const activeFormatFilter = ref<DerivativeFormat | null>('pdf')
+const advancedOpen = ref(false)
+const activeFormatFilter = ref<DerivativeFormat | null>(null)
 
-const availableFormats = computed(() => getFormatCounts(props.derivatives))
+const pdfDerivatives = computed(() => props.derivatives.filter(d => d.format === 'pdf'))
+const advancedDerivatives = computed(() => props.derivatives.filter(d => d.format !== 'pdf'))
 
-const filteredDerivatives = computed(() => {
-  let list = props.derivatives
+const availableFormats = computed(() => getFormatCounts(advancedDerivatives.value))
+
+function applySearch(list: Derivative[]) {
+  if (!search.value) return list
+  const q = search.value.toLowerCase()
+  return list.filter(d => d.name.toLowerCase().includes(q))
+}
+
+const filteredPdfs = computed(() => applySearch(pdfDerivatives.value))
+
+const filteredAdvanced = computed(() => {
+  let list = advancedDerivatives.value
   if (activeFormatFilter.value) {
     list = list.filter(d => d.format === activeFormatFilter.value)
   }
-  if (search.value) {
-    const q = search.value.toLowerCase()
-    list = list.filter(d => d.name.toLowerCase().includes(q))
-  }
-  return list
+  return applySearch(list)
 })
 
-const filteredGuids = computed(() => filteredDerivatives.value.map(d => d.guid))
+const filteredPdfGuids = computed(() => filteredPdfs.value.map(d => d.guid))
+const filteredAdvancedGuids = computed(() => filteredAdvanced.value.map(d => d.guid))
 
-const selectedCount = computed(() =>
-  props.derivatives.filter(d => d.active).length
+const selectedPdfCount = computed(() =>
+  pdfDerivatives.value.filter(d => d.active).length
 )
 
 function toggleFormatFilter(format: DerivativeFormat) {
@@ -70,42 +79,24 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
     <div class="flex items-center gap-2">
       <UInput
         v-model="search"
-        placeholder="Filter derivatives..."
+        placeholder="Filter sheets..."
         icon="i-lucide-search"
         size="sm"
         class="flex-1"
       />
       <UBadge color="primary" variant="subtle">
-        {{ selectedCount }} / {{ derivatives.length }}
+        {{ selectedPdfCount }} / {{ pdfDerivatives.length }}
       </UBadge>
     </div>
 
-    <div v-if="availableFormats.length > 1" class="flex flex-wrap gap-1">
-      <UButton
-        size="xs"
-        :variant="activeFormatFilter === null ? 'solid' : 'subtle'"
-        :color="activeFormatFilter === null ? 'primary' : 'neutral'"
-        @click="activeFormatFilter = null"
-      >
-        All
-      </UButton>
-      <UButton
-        v-for="f in availableFormats"
-        :key="f.format"
-        size="xs"
-        :variant="activeFormatFilter === f.format ? 'solid' : 'subtle'"
-        :color="f.color"
-        @click="toggleFormatFilter(f.format)"
-      >
-        {{ f.count }} {{ f.label }}
-      </UButton>
-    </div>
-
-    <div v-if="viewSets.length > 1" class="flex flex-col gap-2">
+    <div class="flex flex-col gap-2">
       <p class="text-xs font-medium text-muted">
-        View Sets
+        Print Sets
       </p>
-      <div class="flex flex-wrap gap-2">
+      <p v-if="viewSets.length === 0" class="text-sm text-muted">
+        No published print sets found for this model.
+      </p>
+      <div v-else class="flex flex-wrap gap-2">
         <UCheckbox
           v-for="vs in viewSets"
           :key="vs.name"
@@ -120,14 +111,14 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
     <div class="flex flex-col gap-1">
       <div class="flex items-center justify-between">
         <p class="text-xs font-medium text-muted">
-          Derivatives
+          Sheets (PDF)
         </p>
-        <div class="flex items-center gap-1">
+        <div v-if="pdfDerivatives.length > 0" class="flex items-center gap-1">
           <UButton
             size="xs"
             variant="link"
             color="neutral"
-            @click="emit('selectAll', filteredGuids)"
+            @click="emit('selectAll', filteredPdfGuids)"
           >
             Select All
           </UButton>
@@ -135,18 +126,18 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
             size="xs"
             variant="link"
             color="neutral"
-            @click="emit('deselectAll', filteredGuids)"
+            @click="emit('deselectAll', filteredPdfGuids)"
           >
             Deselect All
           </UButton>
         </div>
       </div>
-      <p v-if="filteredDerivatives.length === 0" class="text-sm text-muted py-2">
-        No derivatives found
+      <p v-if="filteredPdfs.length === 0" class="text-sm text-muted py-2">
+        No PDF sheets found for this model
       </p>
       <UScrollArea
         v-else
-        :items="filteredDerivatives"
+        :items="filteredPdfs"
         :virtualize="virtualizeOptions"
         class="max-h-96"
       >
@@ -163,17 +154,9 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
               :ui="{ label: 'truncate' }"
               @update:model-value="emit('toggleDerivative', d.guid)"
             />
-            <UBadge
-              size="xs"
-              :color="FORMAT_COLORS[d.format]"
-              variant="subtle"
-              class="shrink-0"
-            >
-              {{ FORMAT_LABELS[d.format] }}
-            </UBadge>
-            <UTooltip :text="isPreviewable(d.format) ? 'Preview' : 'Download'">
+            <UTooltip text="Preview">
               <UButton
-                :icon="isPreviewable(d.format) ? 'i-lucide-eye' : 'i-lucide-download'"
+                icon="i-lucide-eye"
                 size="xs"
                 color="neutral"
                 variant="ghost"
@@ -185,5 +168,106 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
         </template>
       </UScrollArea>
     </div>
+
+    <UCollapsible v-if="advancedDerivatives.length > 0" v-model:open="advancedOpen">
+      <UButton
+        size="xs"
+        variant="link"
+        color="neutral"
+        :trailing-icon="advancedOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+        :label="`Show advanced model data (${advancedDerivatives.length})`"
+      />
+      <template #content>
+        <div class="flex flex-col gap-2 pt-2">
+          <div v-if="availableFormats.length > 1" class="flex flex-wrap gap-1">
+            <UButton
+              size="xs"
+              :variant="activeFormatFilter === null ? 'solid' : 'subtle'"
+              :color="activeFormatFilter === null ? 'primary' : 'neutral'"
+              @click="activeFormatFilter = null"
+            >
+              All
+            </UButton>
+            <UButton
+              v-for="f in availableFormats"
+              :key="f.format"
+              size="xs"
+              :variant="activeFormatFilter === f.format ? 'solid' : 'subtle'"
+              :color="f.color"
+              @click="toggleFormatFilter(f.format)"
+            >
+              {{ f.count }} {{ f.label }}
+            </UButton>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <p class="text-xs font-medium text-muted">
+              Advanced Model Data
+            </p>
+            <div class="flex items-center gap-1">
+              <UButton
+                size="xs"
+                variant="link"
+                color="neutral"
+                @click="emit('selectAll', filteredAdvancedGuids)"
+              >
+                Select All
+              </UButton>
+              <UButton
+                size="xs"
+                variant="link"
+                color="neutral"
+                @click="emit('deselectAll', filteredAdvancedGuids)"
+              >
+                Deselect All
+              </UButton>
+            </div>
+          </div>
+          <p v-if="filteredAdvanced.length === 0" class="text-sm text-muted py-2">
+            No matching items
+          </p>
+          <UScrollArea
+            v-else
+            :items="filteredAdvanced"
+            :virtualize="virtualizeOptions"
+            class="max-h-96"
+          >
+            <template #default="{ item: d }">
+              <div
+                class="group flex items-center gap-2 rounded px-1 hover:bg-elevated"
+                style="height: 28px;"
+              >
+                <UCheckbox
+                  :model-value="d.active"
+                  :label="d.name"
+                  size="sm"
+                  class="flex-1 min-w-0"
+                  :ui="{ label: 'truncate' }"
+                  @update:model-value="emit('toggleDerivative', d.guid)"
+                />
+                <UBadge
+                  size="xs"
+                  :color="FORMAT_COLORS[d.format]"
+                  variant="subtle"
+                  class="shrink-0"
+                >
+                  {{ FORMAT_LABELS[d.format] }}
+                </UBadge>
+                <UTooltip :text="isPreviewable(d.format) ? 'Preview' : 'Download'">
+                  <UButton
+                    :icon="isPreviewable(d.format) ? 'i-lucide-eye' : 'i-lucide-download'"
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    class="shrink-0"
+                    @click.stop="emit('preview', d.guid)"
+                  />
+                </UTooltip>
+              </div>
+            </template>
+          </UScrollArea>
+        </div>
+      </template>
+    </UCollapsible>
   </div>
 </template>
