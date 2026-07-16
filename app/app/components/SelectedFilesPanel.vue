@@ -41,10 +41,36 @@ function handlePreview(itemId: string, guid: string) {
 const accordionItems = computed<AccordionItem[]>(() =>
   selectedFilesList.value.map(file => ({
     label: file.name,
-    icon: 'i-lucide-file-box',
+    icon: 'i-sprint-file-rvt',
     value: file.itemId,
     ui: { label: 'flex-1', trailingIcon: 'hidden' }
   }))
+)
+
+// Auto-expand a model once its derivatives resolve with PDFs, so users see
+// content immediately. Fires once per file — never fights manual collapse.
+const openItems = ref<string[]>([])
+const autoExpanded = new Set<string>()
+
+watch(
+  () => selectedFilesList.value.map(f => ({ itemId: f.itemId, loading: f.loading })),
+  (files) => {
+    const currentIds = new Set(files.map(f => f.itemId))
+    for (const id of [...autoExpanded]) {
+      if (!currentIds.has(id)) autoExpanded.delete(id)
+    }
+    openItems.value = openItems.value.filter(id => currentIds.has(id))
+
+    for (const f of files) {
+      if (f.loading || autoExpanded.has(f.itemId)) continue
+      autoExpanded.add(f.itemId)
+      const state = fileState(f.itemId)
+      if (state && pdfCount(state.derivatives) > 0 && !openItems.value.includes(f.itemId)) {
+        openItems.value = [...openItems.value, f.itemId]
+      }
+    }
+  },
+  { deep: true }
 )
 
 function fileState(itemId: string) {
@@ -80,6 +106,7 @@ function lastPublished(itemId: string): string | null {
 
   <UAccordion
     v-else
+    v-model="openItems"
     type="multiple"
     :items="accordionItems"
   >

@@ -1,4 +1,4 @@
-import { validateUrn, validateDerivativeUrn, validateRegion, sanitizeHeaderFilename } from '../../utils/validation'
+import { validateUrn, validateDerivativeUrn, validateRegion, contentDisposition } from '../../utils/validation'
 
 export default eventHandler(async (event) => {
   const query = getQuery(event)
@@ -19,11 +19,10 @@ export default eventHandler(async (event) => {
 
   const contentType = (query.mimeType as string) || inferMimeType(derivativeUrnValue)
   const isInline = contentType.startsWith('image/') || contentType === 'application/pdf' || contentType === 'application/json'
-  const safeName = sanitizeHeaderFilename(file.name)
 
   setResponseHeaders(event, {
     'Content-Type': contentType,
-    'Content-Disposition': `${isInline ? 'inline' : 'attachment'}; filename="${safeName}"`
+    'Content-Disposition': contentDisposition(file.name, isInline ? 'inline' : 'attachment')
   })
 
   return file.data

@@ -16,6 +16,7 @@ const {
   handleToggle,
   expandNode,
   searchRevitFiles,
+  clearSearchResults,
   addManualHub,
   addExternalProject,
   rehydrateStored,
@@ -72,6 +73,12 @@ function deselectAllResults() {
   for (const file of searchResults.value) {
     if (isFileSelected(file.id)) removeFile(file.id)
   }
+}
+
+function onCloseSearchResults() {
+  resultsDrawerOpen.value = false
+  resultsFilter.value = ''
+  clearSearchResults()
 }
 
 function onAddManualHub() {
@@ -177,11 +184,11 @@ function onSearchResultClick(fileId: string, fileName: string) {
 
 <template>
   <div class="flex h-full flex-col">
-    <!-- Scrollable tree section -->
-    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+    <!-- Pinned header: title, status, favorites, filter -->
+    <div class="flex shrink-0 flex-col gap-4 p-4 pb-3">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold">
-          ACC/Bim360 Projects
+          Projects
         </h2>
         <UPopover v-model:open="externalPopoverOpen">
           <UButton
@@ -231,7 +238,7 @@ function onSearchResultClick(fileId: string, fileName: string) {
                       Setup Custom Integration
                     </p>
                     <p class="text-muted">
-                      An ACC Account Admin must add sPrint as a Custom Integration:
+                      An ACC Account Admin must add sPRINT as a Custom Integration:
                     </p>
                     <p class="text-muted">
                       Prerequisites: You must be an ACC Account Admin for the relevant ACC account.
@@ -247,7 +254,7 @@ function onSearchResultClick(fileId: string, fileName: string) {
                     </p>
                     <ul class="list-disc list-inside space-y-2 text-muted">
                       <li>In Autodesk Platform Services Client ID (required), paste: <code class="select-all rounded bg-elevated px-1">{{ runtimeConfig.public.apsClientId }}</code></li>
-                      <li>In Custom integration name (required), enter: <strong>sPrint</strong></li>
+                      <li>In Custom integration name (required), enter: <strong>sPRINT</strong></li>
                     </ul>
                     <img src="/images/setup/acc-add-integration.png" alt="Add custom integration dialog" class="w-full rounded border border-default">
                     <ol start="5" class="list-decimal list-inside space-y-2 text-muted">
@@ -332,7 +339,7 @@ function onSearchResultClick(fileId: string, fileName: string) {
         v-if="!loading && items.length > 0"
         v-model="treeFilter"
         icon="i-lucide-search"
-        placeholder="Filter projects..."
+        placeholder="Search projects..."
         size="sm"
         variant="subtle"
       >
@@ -348,7 +355,10 @@ function onSearchResultClick(fileId: string, fileName: string) {
           </UTooltip>
         </template>
       </UInput>
+    </div>
 
+    <!-- Scrollable tree section -->
+    <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
       <div v-if="!loading" ref="treeContainer">
         <UTree
           v-model:expanded="expandedKeys"
@@ -375,7 +385,7 @@ function onSearchResultClick(fileId: string, fileName: string) {
                 :loading="searchingProject === (item as ApsTreeItem)._projectId"
                 @click="onSearchRevitFiles(item as ApsTreeItem)"
               >
-                {{ searchingProject === (item as ApsTreeItem)._projectId ? 'Scanning...' : 'Find .rvt' }}
+                {{ searchingProject === (item as ApsTreeItem)._projectId ? 'Scanning...' : 'Show Revit Files' }}
               </UButton>
               <UTooltip :text="isFavorite(item as ApsTreeItem) ? 'Remove from favorites' : 'Add to favorites'">
                 <UButton
@@ -401,7 +411,7 @@ function onSearchResultClick(fileId: string, fileName: string) {
             <template v-if="isRvtItem(item as ApsTreeItem)">
               <UBadge
                 size="sm"
-                color="success"
+                color="primary"
                 variant="subtle"
               >
                 RVT
@@ -449,22 +459,28 @@ function onSearchResultClick(fileId: string, fileName: string) {
         />
         <div class="flex items-center gap-1">
           <span v-if="searchProgress" class="text-xs text-muted">{{ searchProgress }}</span>
-          <UTooltip text="Select all">
-            <UButton
-              size="xs"
-              variant="ghost"
-              icon="i-lucide-check-check"
-              @click="selectAllResults"
-            />
-          </UTooltip>
-          <UTooltip text="Deselect all">
-            <UButton
-              size="xs"
-              variant="ghost"
-              icon="i-lucide-x"
-              @click="deselectAllResults"
-            />
-          </UTooltip>
+          <UButton
+            size="xs"
+            variant="ghost"
+            icon="i-lucide-check-check"
+            label="Select All"
+            @click="selectAllResults"
+          />
+          <UButton
+            size="xs"
+            variant="ghost"
+            icon="i-lucide-square-minus"
+            label="Deselect All"
+            @click="deselectAllResults"
+          />
+          <UButton
+            size="xs"
+            variant="ghost"
+            color="neutral"
+            icon="i-lucide-x"
+            label="Close"
+            @click="onCloseSearchResults"
+          />
         </div>
       </div>
 
@@ -498,7 +514,7 @@ function onSearchResultClick(fileId: string, fileName: string) {
                 class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-elevated"
                 @click="onSearchResultClick(file.id, file.name)"
               >
-                <UIcon name="i-lucide-file-box" class="text-muted shrink-0" />
+                <UIcon name="i-sprint-file-rvt" class="text-muted shrink-0" />
                 <span class="truncate">{{ file.name }}</span>
                 <span class="text-muted truncate text-xs">{{ file.path }}</span>
                 <div class="ml-auto" @click.stop>

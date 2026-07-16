@@ -13,7 +13,7 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   colorMode: {
-    preference: 'dark'
+    preference: 'light'
   },
 
   runtimeConfig: {
@@ -48,5 +48,12 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
+  },
+
+  icon: {
+    customCollections: [{
+      prefix: 'sprint',
+      dir: './app/assets/icons'
+    }]
   }
 })

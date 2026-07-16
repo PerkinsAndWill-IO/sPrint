@@ -4,7 +4,7 @@ import {
   validateUrn,
   validateDerivativeUrn,
   validateRegion,
-  sanitizeHeaderFilename
+  contentDisposition
 } from '../../utils/validation'
 
 describe('validateApsId', () => {
@@ -90,26 +90,56 @@ describe('validateRegion', () => {
   })
 })
 
-describe('sanitizeHeaderFilename', () => {
-  it('passes through safe filenames', () => {
-    expect(sanitizeHeaderFilename('floor-plan.pdf')).toBe('floor-plan.pdf')
-    expect(sanitizeHeaderFilename('Sheet A101.pdf')).toBe('Sheet A101.pdf')
+describe('contentDisposition', () => {
+  // Node throws ERR_INVALID_CHAR for header values with chars above 0xFF —
+  // every produced value must be Latin-1-safe (we keep it ASCII-only)
+  function expectHeaderSafe(value: string) {
+    expect(value).toMatch(/^[\x20-\x7E]*$/)
+  }
+
+  it('passes through safe ASCII filenames', () => {
+    const v = contentDisposition('floor-plan.pdf')
+    expect(v).toContain('attachment; filename="floor-plan.pdf"')
+    expect(v).toContain('filename*=UTF-8\'\'floor-plan.pdf')
+    expectHeaderSafe(v)
   })
 
-  it('strips double quotes to prevent header breakout', () => {
-    expect(sanitizeHeaderFilename('file"name.pdf')).toBe('filename.pdf')
+  it('replaces non-ASCII with underscores in the fallback and encodes filename*', () => {
+    const v = contentDisposition('東京タワー.zip')
+    expect(v).toContain('filename="_____.zip"')
+    expect(v).toContain('filename*=UTF-8\'\'%E6%9D%B1%E4%BA%AC%E3%82%BF%E3%83%AF%E3%83%BC.zip')
+    expectHeaderSafe(v)
   })
 
-  it('strips newlines to prevent header injection', () => {
-    expect(sanitizeHeaderFilename('file\r\nX-Injected: evil')).toBe('fileX-Injected: evil')
+  it('handles em-dashes and smart quotes without throwing header-invalid chars', () => {
+    const v = contentDisposition('Plan — “Rev A”.pdf')
+    expectHeaderSafe(v)
+    expect(v).toContain('filename="Plan _ _Rev A_.pdf"')
   })
 
-  it('strips backslashes', () => {
-    expect(sanitizeHeaderFilename('path\\file.pdf')).toBe('pathfile.pdf')
+  it('strips quotes and backslashes from the fallback to prevent header breakout', () => {
+    const v = contentDisposition('file"name\\evil.pdf')
+    expect(v).toContain('filename="filenameevil.pdf"')
+    expectHeaderSafe(v)
   })
 
-  it('returns "download" for empty or whitespace-only input', () => {
-    expect(sanitizeHeaderFilename('')).toBe('download')
-    expect(sanitizeHeaderFilename('   ')).toBe('download')
+  it('newlines cannot reach the header value', () => {
+    const v = contentDisposition('file\r\nX-Injected: evil')
+    expectHeaderSafe(v)
+    expect(v).not.toContain('\r')
+    expect(v).not.toContain('\n')
+  })
+
+  it('percent-encodes RFC 5987 attr-char exceptions in filename*', () => {
+    const v = contentDisposition(`a'b(c)d*e.pdf`)
+    expect(v).toContain('filename*=UTF-8\'\'a%27b%28c%29d%2Ae.pdf')
+  })
+
+  it('falls back to "download" for empty names', () => {
+    expect(contentDisposition('')).toContain('filename="download"')
+  })
+
+  it('supports inline disposition', () => {
+    expect(contentDisposition('img.png', 'inline')).toMatch(/^inline; /)
   })
 })

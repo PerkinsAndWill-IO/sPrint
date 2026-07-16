@@ -44,12 +44,12 @@ const exportLabel = computed(() => {
               <URadioGroup
                 v-model="exportOptions.mergeScope"
                 legend="Merge"
-                orientation="horizontal"
                 size="xs"
+                class="max-w-64"
                 :items="[
-                  { label: 'None', value: 'none' },
-                  { label: 'Per model', value: 'per-model' },
-                  { label: 'All', value: 'all' }
+                  { label: 'None', value: 'none', description: 'Download each PDF separately unless zip output is enabled.' },
+                  { label: 'Per model', value: 'per-model', description: 'Combine PDFs from each Revit model into one PDF per model.' },
+                  { label: 'All', value: 'all', description: 'Combine all selected PDFs into one PDF.' }
                 ]"
               />
             </template>
@@ -59,12 +59,16 @@ const exportLabel = computed(() => {
             <USwitch
               v-model="exportOptions.zip"
               label="Zip output"
+              description="Package downloads into a ZIP file. Required when downloading multiple separate files."
               size="xs"
+              class="max-w-64"
             />
             <USwitch
               v-model="exportOptions.modelFolders"
               label="Folders per model"
+              description="Organize downloaded files into one folder per Revit model inside the ZIP."
               size="xs"
+              class="max-w-64"
             />
           </div>
         </template>
@@ -93,6 +97,8 @@ const exportLabel = computed(() => {
       icon="i-lucide-check-circle"
       title="Download complete"
       description="Your download should start automatically."
+      close
+      @update:open="downloadComplete = false"
     />
   </div>
 </template>

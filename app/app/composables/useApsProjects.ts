@@ -147,7 +147,7 @@ export function useApsProjects() {
       }
       return {
         label: content.name,
-        icon: content.isRevitFile ? 'i-lucide-file-box' : 'i-lucide-file',
+        icon: content.isRevitFile ? 'i-sprint-file-rvt' : 'i-lucide-file',
         _apsType: 'item',
         _apsId: `item-${content.id}`,
         _projectId: projectId,
@@ -209,6 +209,13 @@ export function useApsProjects() {
     // Programmatic expansion does not fire the tree's @toggle,
     // so trigger lazy loading manually
     if (!node._loaded) await handleToggle(node)
+  }
+
+  function clearSearchResults() {
+    searchResults.value = []
+    searchProgress.value = ''
+    searchingProject.value = null
+    scannedFolders.value = 0
   }
 
   function searchRevitFiles(hubId: string | undefined, projectId: string, folderId?: string) {
@@ -306,7 +313,7 @@ export function useApsProjects() {
       }
       return {
         label: content.name,
-        icon: content.isRevitFile ? 'i-lucide-file-box' : 'i-lucide-file',
+        icon: content.isRevitFile ? 'i-sprint-file-rvt' : 'i-lucide-file',
         _apsType: 'item',
         _apsId: `item-${content.id}`,
         _projectId: parsed.projectId,
@@ -487,6 +494,7 @@ export function useApsProjects() {
     handleToggle,
     expandNode,
     searchRevitFiles,
+    clearSearchResults,
     addManualHub,
     addExternalProject,
     rehydrateStored,

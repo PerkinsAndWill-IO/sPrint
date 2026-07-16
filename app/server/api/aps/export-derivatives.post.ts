@@ -2,7 +2,7 @@ import archiver from 'archiver'
 import { PassThrough } from 'node:stream'
 import { parseExportBody, sanitizeFolderName, inferMimeType } from '../../utils/aps-download'
 import { mergePdfBuffers } from '../../utils/pdf-merge'
-import { validateRegion, sanitizeHeaderFilename, resolveDownloadBaseName } from '../../utils/validation'
+import { validateRegion, contentDisposition, resolveDownloadBaseName } from '../../utils/validation'
 
 interface DerivativeFile {
   name: string
@@ -117,7 +117,7 @@ export default eventHandler(async (event) => {
 
       setResponseHeaders(event, {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${baseName}.pdf"`
+        'Content-Disposition': contentDisposition(`${baseName}.pdf`)
       })
       return singleFile.data
     }
@@ -128,7 +128,7 @@ export default eventHandler(async (event) => {
       const mimeType = inferMimeType(file.name)
       setResponseHeaders(event, {
         'Content-Type': mimeType,
-        'Content-Disposition': `attachment; filename="${sanitizeHeaderFilename(file.name)}"`
+        'Content-Disposition': contentDisposition(file.name)
       })
       return file.data
     }
@@ -138,7 +138,7 @@ export default eventHandler(async (event) => {
   // zip: true (or forced for mixed content)
   setResponseHeaders(event, {
     'Content-Type': 'application/zip',
-    'Content-Disposition': `attachment; filename="${baseName}.zip"`
+    'Content-Disposition': contentDisposition(`${baseName}.zip`)
   })
 
   const archive = archiver('zip', { zlib: { level: 5 } })
