@@ -114,6 +114,15 @@ describe('export-derivatives endpoint', () => {
   })
 
   describe('export limits', () => {
+    it('accepts a model with 620 derivatives', () => {
+      const derivatives = Array.from({ length: 620 }, (_, i) => `d${i}`)
+      const result = parseExportBody({
+        files: [{ urn: 'urn1', derivatives }]
+      })
+
+      expect('fileGroups' in result).toBe(true)
+    })
+
     it('rejects requests with more than 50 file groups', () => {
       const files = Array.from({ length: 51 }, (_, i) => ({
         urn: `urn${i}`,
@@ -126,8 +135,8 @@ describe('export-derivatives endpoint', () => {
       }
     })
 
-    it('rejects file groups with more than 200 derivatives each', () => {
-      const derivatives = Array.from({ length: 201 }, (_, i) => `d${i}`)
+    it('rejects file groups with more than 1,000 derivatives each', () => {
+      const derivatives = Array.from({ length: 1001 }, (_, i) => `d${i}`)
       const result = parseExportBody({
         files: [{ urn: 'urn1', derivatives }]
       })

@@ -169,7 +169,7 @@ export function sanitizeFolderName(name: string): string {
 }
 
 const MAX_FILE_GROUPS = 50
-const MAX_DERIVATIVES_PER_GROUP = 200
+const MAX_DERIVATIVES_PER_GROUP = 1000
 
 export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], options: ParsedExportOptions } | { error: string } {
   const rawMerge = body.options?.mergeScope
