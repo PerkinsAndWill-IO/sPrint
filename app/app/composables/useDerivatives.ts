@@ -42,7 +42,7 @@ export function useDerivatives() {
     })
 
     try {
-      const itemResult = await $fetch('/api/aps/item-urn', {
+      const itemResult = await api('/api/aps/item-urn', {
         params: { projectId, itemId }
       })
 
@@ -52,7 +52,7 @@ export function useDerivatives() {
       entry.name = itemResult.name || name
       entry.lastModifiedTime = itemResult.lastModifiedTime
 
-      const manifestResult = await $fetch('/api/aps/manifest', {
+      const manifestResult = await api('/api/aps/manifest', {
         params: { urn: itemResult.urn, region }
       })
 

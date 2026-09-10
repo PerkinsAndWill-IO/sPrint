@@ -36,7 +36,7 @@ const user = ref({
 
 onMounted(async () => {
   try {
-    const profile = await $fetch('/api/auth/me')
+    const profile = await api('/api/auth/me')
     user.value = {
       name: profile.name,
       avatar: {

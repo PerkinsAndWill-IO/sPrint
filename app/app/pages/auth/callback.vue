@@ -5,7 +5,7 @@ definePageMeta({
 
 onMounted(async () => {
   try {
-    await $fetch('/api/auth/aps/exchange', { method: 'POST' })
+    await api('/api/auth/aps/exchange', { method: 'POST' })
     await navigateTo('/dashboard')
   } catch {
     await navigateTo('/')

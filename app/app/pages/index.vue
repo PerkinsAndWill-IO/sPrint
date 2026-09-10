@@ -11,7 +11,7 @@ const router = useRouter()
 // Check if user is authenticated and redirect to dashboard
 onMounted(async () => {
   try {
-    const { authenticated } = await $fetch<{ authenticated: boolean }>('/api/auth/check')
+    const { authenticated } = await api<{ authenticated: boolean }>('/api/auth/check')
 
     if (authenticated) {
       // User is authenticated, redirect to dashboard
@@ -28,7 +28,7 @@ const isLoading = ref(false)
 async function handleLogin() {
   try {
     isLoading.value = true
-    const response = await $fetch<{ authUrl: string }>('/api/auth/aps/authorize')
+    const response = await api<{ authUrl: string }>('/api/auth/aps/authorize')
 
     if (response?.authUrl) {
       window.location.href = response.authUrl
