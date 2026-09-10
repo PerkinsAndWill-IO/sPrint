@@ -72,7 +72,7 @@ async function initForgeViewer() {
           env: props.region === 'EMEA' ? 'AutodeskProduction2' : 'AutodeskProduction',
           api: props.region === 'EMEA' ? 'streamingV2_EU' : 'streamingV2',
           getAccessToken: async (onTokenReady) => {
-            const { access_token } = await $fetch<{ access_token: string }>('/api/aps/viewer-token')
+            const { access_token } = await api<{ access_token: string }>('/api/aps/viewer-token')
             onTokenReady(access_token, 3600)
           }
         }

@@ -65,7 +65,7 @@ export function useApsProjects() {
     warnings.value = []
     expandedKeys.value = []
     try {
-      const response = await $fetch('/api/aps/hubs')
+      const response = await api('/api/aps/hubs')
       warnings.value = response.warnings || []
       items.value = response.hubs.map((hub): ApsTreeItem => ({
         label: hub.name,
@@ -87,7 +87,7 @@ export function useApsProjects() {
     const hubId = item._hubId
     if (!hubId) return
 
-    const projects = await $fetch('/api/aps/projects', { params: { hubId } })
+    const projects = await api('/api/aps/projects', { params: { hubId } })
     const children: ApsTreeItem[] = projects.map((project): ApsTreeItem => ({
       label: project.name,
       icon: 'i-lucide-folder-kanban',
@@ -110,7 +110,7 @@ export function useApsProjects() {
     const projectId = item._projectId
     if (!hubId || !projectId) return
 
-    const folders = await $fetch('/api/aps/top-folders', { params: { hubId, projectId } })
+    const folders = await api('/api/aps/top-folders', { params: { hubId, projectId } })
     const children: ApsTreeItem[] = folders.map((folder): ApsTreeItem => ({
       label: folder.name,
       _apsType: 'folder',
@@ -131,7 +131,7 @@ export function useApsProjects() {
     const folderId = item._apsId.replace('folder-', '')
     if (!projectId) return
 
-    const contents = await $fetch('/api/aps/folder-contents', { params: { projectId, folderId } })
+    const contents = await api('/api/aps/folder-contents', { params: { projectId, folderId } })
     const children: ApsTreeItem[] = contents.map((content): ApsTreeItem => {
       if (content.type === 'folders') {
         return {
@@ -296,7 +296,7 @@ export function useApsProjects() {
     const parsed = parseBim360Url(url)
     if (!parsed) throw new Error('Invalid BIM 360 / ACC URL')
 
-    const response = await $fetch('/api/aps/project-info', {
+    const response = await api('/api/aps/project-info', {
       params: { projectId: parsed.projectId, folderId: parsed.folderId }
     })
 
