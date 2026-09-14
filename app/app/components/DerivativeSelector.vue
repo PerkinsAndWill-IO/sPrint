@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import type { DropdownMenuItem } from '@nuxt/ui'
 import type { Derivative, DerivativeFormat, ViewSet } from '~/types/derivatives'
 import { FORMAT_LABELS, FORMAT_COLORS, PREVIEWABLE_FORMATS, getFormatCounts } from '~/utils/derivative-formats'
+import { sortPdfDerivatives, type PdfSort } from '~/utils/sort-pdf-derivatives'
 
 const props = defineProps<{
   derivatives: Derivative[]
   viewSets: ViewSet[]
 }>()
+
+const pdfSort = defineModel<PdfSort>('sort', { required: true })
 
 const emit = defineEmits<{
   toggleDerivative: [guid: string]
@@ -19,6 +23,22 @@ const search = ref('')
 const advancedOpen = ref(false)
 const activeFormatFilter = ref<DerivativeFormat | null>(null)
 
+const pdfSortLabels = {
+  'number-asc': 'Sheet number ↑',
+  'number-desc': 'Sheet number ↓',
+  'name-asc': 'Sheet name A–Z',
+  'name-desc': 'Sheet name Z–A',
+  'original': 'Original order'
+} satisfies Record<PdfSort, string>
+
+const pdfSortItems = computed<DropdownMenuItem[]>(() =>
+  (Object.entries(pdfSortLabels) as [PdfSort, string][]).map(([value, label]) => ({
+    label,
+    icon: pdfSort.value === value ? 'i-lucide-check' : undefined,
+    onSelect: () => { pdfSort.value = value }
+  }))
+)
+
 const pdfDerivatives = computed(() => props.derivatives.filter(d => d.format === 'pdf'))
 const advancedDerivatives = computed(() => props.derivatives.filter(d => d.format !== 'pdf'))
 
@@ -30,7 +50,9 @@ function applySearch(list: Derivative[]) {
   return list.filter(d => d.name.toLowerCase().includes(q))
 }
 
-const filteredPdfs = computed(() => applySearch(pdfDerivatives.value))
+const filteredPdfs = computed(() =>
+  sortPdfDerivatives(applySearch(pdfDerivatives.value), pdfSort.value)
+)
 
 const filteredAdvanced = computed(() => {
   let list = advancedDerivatives.value
@@ -109,10 +131,25 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
     </div>
 
     <div class="flex flex-col gap-1">
-      <div class="flex items-center justify-between">
-        <p class="text-xs font-medium text-muted">
-          Sheets (PDF)
-        </p>
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <p class="text-xs font-medium text-muted shrink-0">
+            Sheets (PDF)
+          </p>
+          <UDropdownMenu
+            :items="pdfSortItems"
+            :content="{ align: 'start' }"
+          >
+            <UButton
+              :label="pdfSortLabels[pdfSort]"
+              icon="i-lucide-arrow-down-up"
+              size="xs"
+              variant="outline"
+              color="neutral"
+              class="shrink-0"
+            />
+          </UDropdownMenu>
+        </div>
         <div v-if="pdfDerivatives.length > 0" class="flex items-center gap-1">
           <UButton
             size="xs"

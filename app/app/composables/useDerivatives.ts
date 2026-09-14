@@ -1,10 +1,15 @@
+import { useLocalStorage } from '@vueuse/core'
 import type { ExportOptions, SelectedFileState } from '~/types/derivatives'
+import { orderDerivativesForExport, type PdfSort } from '~/utils/sort-pdf-derivatives'
 
 // Module-scope shared state — all callers of useDerivatives() share the same refs
 const selectedFiles = reactive(new Map<string, SelectedFileState>())
 const exporting = ref(false)
 const exportError = ref<string | null>(null)
 const downloadComplete = ref(false)
+const pdfSort = import.meta.client
+  ? useLocalStorage<PdfSort>('sprint:pdf-sort', 'number-asc')
+  : shallowRef<PdfSort>('number-asc')
 const exportOptions = reactive<ExportOptions>({
   mergeScope: 'none',
   zip: true,
@@ -140,7 +145,10 @@ export function useDerivatives() {
     const filesToExport = selectedFilesList.value
       .map(file => ({
         urn: file.urn,
-        derivatives: file.derivatives.filter(d => d.active).map(d => ({ urn: d.urn, name: d.name })),
+        derivatives: orderDerivativesForExport(
+          file.derivatives.filter(d => d.active),
+          pdfSort.value
+        ).map(d => ({ urn: d.urn, name: d.name })),
         name: file.name.replace(/\.rvt$/i, ''),
         projectName: file.projectName
       }))
@@ -248,6 +256,7 @@ export function useDerivatives() {
     exporting,
     exportError,
     downloadComplete,
+    pdfSort,
     addFile,
     removeFile,
     isFileSelected,

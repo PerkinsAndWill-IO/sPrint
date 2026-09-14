@@ -10,7 +10,8 @@ const {
   toggleViewSet,
   selectAllForFile,
   deselectAllForFile,
-  getPreviewUrl
+  getPreviewUrl,
+  pdfSort
 } = useDerivatives()
 
 const previewOpen = ref(false)
@@ -201,6 +202,7 @@ function lastPublished(itemId: string): string | null {
 
         <div v-else>
           <DerivativeSelector
+            v-model:sort="pdfSort"
             :derivatives="file.derivatives"
             :view-sets="file.viewSets"
             @toggle-derivative="toggleDerivative(file.itemId, $event)"
