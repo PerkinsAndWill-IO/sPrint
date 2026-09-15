@@ -2,7 +2,7 @@ import archiver from 'archiver'
 import { PassThrough } from 'node:stream'
 import { parseExportBody, sanitizeFolderName, inferMimeType } from '../../utils/aps-download'
 import { mergePdfBuffers } from '../../utils/pdf-merge'
-import { validateRegion, sanitizeHeaderFilename } from '../../utils/validation'
+import { validateRegion } from '../../utils/validation'
 
 interface DerivativeFile {
   name: string
@@ -124,7 +124,7 @@ export default eventHandler(async (event) => {
       const mimeType = inferMimeType(file.name)
       setResponseHeaders(event, {
         'Content-Type': mimeType,
-        'Content-Disposition': `attachment; filename="${sanitizeHeaderFilename(file.name)}"`
+        'Content-Disposition': buildContentDisposition('attachment', file.name)
       })
       return file.data
     }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseSignedCookies, buildCloudFrontUrl, deriveFileName } from '../../utils/aps-download'
+import { parseSignedCookies, buildCloudFrontUrl, deriveFileName, buildContentDisposition } from '../../utils/aps-download'
 
 describe('aps-download utilities', () => {
   describe('parseSignedCookies', () => {
@@ -103,6 +103,30 @@ describe('aps-download utilities', () => {
 
     it('falls back to URN when displayName is empty', () => {
       expect(deriveFileName('output/pdf/A_400-01.pdf', '')).toBe('A_400-01.pdf')
+    })
+  })
+
+  describe('buildContentDisposition', () => {
+    it('uses a plain quoted filename for ASCII names', () => {
+      expect(buildContentDisposition('inline', 'A04-02A - DEMOLITION PLAN.pdf'))
+        .toBe('inline; filename="A04-02A - DEMOLITION PLAN.pdf"')
+    })
+
+    it('adds an RFC 5987 filename* and ASCII fallback for non-ASCII names', () => {
+      const result = buildContentDisposition('attachment', 'A.400-01 – PLAN ÉTAGE.pdf')
+      expect(result).toBe(
+        'attachment; filename="A.400-01 _ PLAN _TAGE.pdf"; filename*=UTF-8\'\'A.400-01%20%E2%80%93%20PLAN%20%C3%89TAGE.pdf'
+      )
+      // Every character must be Latin-1 safe or Node rejects the header
+      expect(/^[\x20-\x7E]*$/.test(result)).toBe(true)
+    })
+
+    it('strips quotes, backslashes and newlines', () => {
+      expect(buildContentDisposition('inline', 'bad"na\\me\r\n.pdf')).toBe('inline; filename="badname.pdf"')
+    })
+
+    it('falls back to "download" for empty names', () => {
+      expect(buildContentDisposition('attachment', '   ')).toBe('attachment; filename="download"')
     })
   })
 })

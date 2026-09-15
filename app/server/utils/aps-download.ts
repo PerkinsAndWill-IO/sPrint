@@ -12,6 +12,30 @@ interface DerivativeFile {
   data: Buffer
 }
 
+export interface DerivativeStream {
+  stream: ReadableStream<Uint8Array>
+  status: number
+  headers: Record<string, string>
+}
+
+/** Time allowed for an upstream to answer with response headers (not body). */
+const UPSTREAM_HEADERS_TIMEOUT_MS = 30_000
+
+/**
+ * Builds an RFC 6266 / RFC 5987 Content-Disposition value. Node rejects header
+ * values containing characters outside Latin-1, so a display name such as
+ * "A.400-01 – PLAN" (en dash) would otherwise throw ERR_INVALID_CHAR. The ASCII
+ * fallback keeps legacy clients working; `filename*` carries the exact UTF-8 name.
+ */
+export function buildContentDisposition(type: 'inline' | 'attachment', name: string): string {
+  const cleaned = name.replace(/[\r\n"\\]/g, '').trim() || 'download'
+  const ascii = cleaned.replace(/[^\x20-\x7E]/g, '_')
+  if (ascii === cleaned) {
+    return `${type}; filename="${ascii}"`
+  }
+  return `${type}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(cleaned)}`
+}
+
 export function parseSignedCookies(cookieHeader: string): { policy: string, keyPairId: string, signature: string } {
   const cookies: Record<string, string> = {}
   for (const part of cookieHeader.split(',')) {
@@ -80,7 +104,8 @@ export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string,
     headers: {
       Authorization: `Bearer ${token}`,
       ...regionHeader(region)
-    }
+    },
+    signal: AbortSignal.timeout(UPSTREAM_HEADERS_TIMEOUT_MS)
   })
 
   if (!response.ok) {
@@ -109,6 +134,34 @@ export async function downloadDerivative(signedInfo: SignedCookieInfo, derivativ
     name: deriveFileName(derivativeUrn, displayName),
     data: Buffer.from(arrayBuffer)
   }
+}
+
+const FORWARDED_UPSTREAM_HEADERS = ['content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified'] as const
+
+/**
+ * Opens the derivative as a stream instead of buffering it. Used by the single
+ * derivative endpoint so large sheets flow straight to the browser. The optional
+ * Range header is forwarded so PDF viewers can fetch pages progressively.
+ */
+export async function openDerivativeStream(signedInfo: SignedCookieInfo, range?: string): Promise<DerivativeStream> {
+  const downloadUrl = buildCloudFrontUrl(signedInfo.url, signedInfo.policy, signedInfo.keyPairId, signedInfo.signature)
+
+  const response = await fetch(downloadUrl, {
+    headers: range ? { Range: range } : {},
+    signal: AbortSignal.timeout(UPSTREAM_HEADERS_TIMEOUT_MS)
+  })
+  if (!response.ok || !response.body) {
+    const body = await response.text().catch(() => '')
+    throw new Error(`Failed to download derivative: ${response.status} ${body}`)
+  }
+
+  const headers: Record<string, string> = {}
+  for (const h of FORWARDED_UPSTREAM_HEADERS) {
+    const v = response.headers.get(h)
+    if (v) headers[h] = v
+  }
+
+  return { stream: response.body, status: response.status, headers }
 }
 
 export interface DerivativeRef {

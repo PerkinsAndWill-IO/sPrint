@@ -15,7 +15,7 @@ const loading = ref(true)
 const jsonData = ref<unknown>(null)
 const jsonError = ref<string | null>(null)
 const viewerError = ref<string | null>(null)
-const pdfBlobUrl = ref<string | null>(null)
+const pdfSrc = ref<string | null>(null)
 
 const viewerContainer = ref<HTMLDivElement | null>(null)
 const viewer = shallowRef<Autodesk.Viewing.GuiViewer3D | null>(null)
@@ -26,10 +26,31 @@ function onLoad() {
   loading.value = false
 }
 
-function revokePdfBlob() {
-  if (pdfBlobUrl.value) {
-    URL.revokeObjectURL(pdfBlobUrl.value)
-    pdfBlobUrl.value = null
+/**
+ * The PDF iframe points straight at the API so the browser's viewer streams the
+ * file progressively instead of waiting for a full blob download. A successful
+ * PDF renders in the browser's plugin, whose document is not scriptable; if the
+ * document IS readable it means the server answered with an error body instead.
+ */
+function onPdfFrameLoad(e: Event) {
+  loading.value = false
+  const frame = e.target as HTMLIFrameElement
+  try {
+    const doc = frame.contentDocument
+    const text = doc?.body?.innerText?.trim()
+    if (text) {
+      let message = 'Failed to load PDF'
+      try {
+        const parsed = JSON.parse(text) as { statusMessage?: string, message?: string }
+        message = parsed.statusMessage || parsed.message || message
+      } catch {
+        // Non-JSON error page; keep generic message
+      }
+      viewerError.value = message
+      pdfSrc.value = null
+    }
+  } catch {
+    // Cross-origin or plugin document: the PDF rendered, nothing to do
   }
 }
 
@@ -133,19 +154,10 @@ watch(open, async (val) => {
     jsonData.value = null
     jsonError.value = null
     viewerError.value = null
-    revokePdfBlob()
+    pdfSrc.value = null
 
     if (props.format === 'pdf') {
-      try {
-        const res = await fetch(props.url)
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const blob = await res.blob()
-        pdfBlobUrl.value = URL.createObjectURL(blob)
-      } catch (e) {
-        viewerError.value = e instanceof Error ? e.message : 'Failed to load PDF'
-      } finally {
-        loading.value = false
-      }
+      pdfSrc.value = props.url
     } else if (props.format === 'aec') {
       try {
         const res = await fetch(props.url)
@@ -162,13 +174,12 @@ watch(open, async (val) => {
     }
   } else {
     destroyViewer()
-    revokePdfBlob()
+    pdfSrc.value = null
   }
 })
 
 onBeforeUnmount(() => {
   destroyViewer()
-  revokePdfBlob()
 })
 </script>
 
@@ -178,22 +189,24 @@ onBeforeUnmount(() => {
 
     <template #body>
       <div class="relative h-full w-full min-h-0">
-        <!-- PDF: fetch as blob, render in iframe -->
+        <!-- PDF: browser viewer streams straight from the API -->
         <template v-if="format === 'pdf'">
-          <div v-if="loading" class="absolute inset-0 flex items-center justify-center">
+          <div v-if="loading" class="absolute inset-0 flex items-center justify-center z-10">
             <UIcon name="i-lucide-loader" class="animate-spin size-8 text-muted" />
           </div>
-          <div v-else-if="viewerError" class="flex flex-col items-center justify-center h-full gap-4">
+          <div v-if="viewerError" class="flex flex-col items-center justify-center h-full gap-4">
             <UIcon name="i-lucide-alert-circle" class="size-16 text-error" />
             <p class="text-error text-sm">
               {{ viewerError }}
             </p>
           </div>
           <iframe
-            v-else-if="pdfBlobUrl"
-            :src="pdfBlobUrl"
+            v-else-if="pdfSrc"
+            :src="pdfSrc"
+            :title="title"
             type="application/pdf"
             class="h-full w-full border-0"
+            @load="onPdfFrameLoad"
           />
         </template>
 

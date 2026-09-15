@@ -36,6 +36,13 @@ export default defineNuxtConfig({
         'X-Frame-Options': 'DENY',
         'Referrer-Policy': 'strict-origin-when-cross-origin'
       }
+    },
+    // The preview modal renders this endpoint inside a same-origin iframe so the
+    // browser's PDF viewer can stream the file; DENY would block that.
+    '/api/aps/derivative': {
+      headers: {
+        'X-Frame-Options': 'SAMEORIGIN'
+      }
     }
   },
 
