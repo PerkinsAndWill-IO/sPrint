@@ -28,6 +28,7 @@ const pdfSortLabels = {
   'number-desc': 'Sheet number ↓',
   'name-asc': 'Sheet name A–Z',
   'name-desc': 'Sheet name Z–A',
+  'pdm': 'PDM discipline order',
   'original': 'Original order'
 } satisfies Record<PdfSort, string>
 
