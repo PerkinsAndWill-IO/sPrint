@@ -22,7 +22,11 @@ export default eventHandler(async (event) => {
 
   setResponseHeaders(event, {
     'Content-Type': contentType,
-    'Content-Disposition': contentDisposition(file.name, isInline ? 'inline' : 'attachment')
+    'Content-Disposition': contentDisposition(file.name, isInline ? 'inline' : 'attachment'),
+    // Inline previews render inside a same-origin <iframe> (DerivativeViewerModal).
+    // The global '/api/**' route rule sets DENY, which makes the browser refuse to
+    // display the PDF. SAMEORIGIN still blocks cross-origin framing.
+    'X-Frame-Options': isInline ? 'SAMEORIGIN' : 'DENY'
   })
 
   return file.data
