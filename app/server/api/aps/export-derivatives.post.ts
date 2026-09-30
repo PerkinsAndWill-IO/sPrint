@@ -1,5 +1,6 @@
 import archiver from 'archiver'
 import { PassThrough } from 'node:stream'
+import { posix } from 'node:path'
 import { parseExportBody, sanitizeFolderName, inferMimeType } from '../../utils/aps-download'
 import { mergePdfBuffers } from '../../utils/pdf-merge'
 import { validateRegion, contentDisposition, resolveDownloadBaseName } from '../../utils/validation'
@@ -146,12 +147,25 @@ export default eventHandler(async (event) => {
   archive.pipe(passThrough)
 
   const useModelFolders = options.modelFolders && outputGroups.length > 1
+  const entries = outputGroups.flatMap(group => group.files.map(file => ({
+    name: `${useModelFolders ? `${group.name}/` : ''}${file.name}`,
+    data: file.data
+  })))
+  const reservedNames = new Set(entries.map(entry => entry.name))
+  const usedNames = new Set<string>()
 
-  for (const group of outputGroups) {
-    const folderPrefix = useModelFolders ? `${group.name}/` : ''
-    for (const file of group.files) {
-      archive.append(file.data, { name: `${folderPrefix}${file.name}` })
+  for (const entry of entries) {
+    let name = entry.name
+    if (usedNames.has(name)) {
+      const extension = posix.extname(name)
+      const stem = name.slice(0, name.length - extension.length)
+      let suffix = 2
+      do {
+        name = `${stem} (${suffix++})${extension}`
+      } while (reservedNames.has(name) || usedNames.has(name))
     }
+    usedNames.add(name)
+    archive.append(entry.data, { name })
   }
 
   archive.finalize()

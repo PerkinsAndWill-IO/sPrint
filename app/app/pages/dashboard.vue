@@ -15,6 +15,7 @@ definePageMeta({
     :default-size="55"
     :min-size="30"
     :max-size="70"
+    class="lg:shrink"
   >
     <template #header>
       <UDashboardNavbar title="sPRINT">
@@ -30,7 +31,7 @@ definePageMeta({
   </UDashboardPanel>
 
   <!-- Desktop: side-by-side panel -->
-  <UDashboardPanel id="dashboard-selection" class="hidden lg:flex">
+  <UDashboardPanel id="dashboard-selection" class="hidden lg:flex lg:min-w-80">
     <template #header>
       <UDashboardNavbar>
         <template #title>

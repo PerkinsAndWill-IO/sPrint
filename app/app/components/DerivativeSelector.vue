@@ -105,7 +105,7 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
         placeholder="Filter sheets..."
         icon="i-lucide-search"
         size="sm"
-        class="flex-1"
+        class="flex-1 min-w-0"
       />
       <UBadge color="primary" variant="subtle">
         {{ selectedPdfCount }} / {{ pdfDerivatives.length }}
@@ -126,13 +126,15 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
           :model-value="viewSetStates.get(vs.name)"
           :label="vs.name"
           size="sm"
+          class="max-w-full"
+          :ui="{ container: 'shrink-0', wrapper: 'min-w-0', label: 'break-words' }"
           @update:model-value="emit('toggleViewSet', vs.name)"
         />
       </div>
     </div>
 
     <div class="flex flex-col gap-1">
-      <div class="flex items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-2 min-w-0">
           <p class="text-xs font-medium text-muted shrink-0">
             Sheets (PDF)
@@ -189,7 +191,7 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
               :label="d.name"
               size="sm"
               class="flex-1 min-w-0"
-              :ui="{ label: 'truncate' }"
+              :ui="{ container: 'shrink-0', wrapper: 'min-w-0', label: 'truncate' }"
               @update:model-value="emit('toggleDerivative', d.guid)"
             />
             <UTooltip text="Preview">
@@ -238,7 +240,7 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
             </UButton>
           </div>
 
-          <div class="flex items-center justify-between">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <p class="text-xs font-medium text-muted">
               Advanced Model Data
             </p>
@@ -280,7 +282,7 @@ const virtualizeOptions = { estimateSize: () => 28, skipMeasurement: true, overs
                   :label="d.name"
                   size="sm"
                   class="flex-1 min-w-0"
-                  :ui="{ label: 'truncate' }"
+                  :ui="{ container: 'shrink-0', wrapper: 'min-w-0', label: 'truncate' }"
                   @update:model-value="emit('toggleDerivative', d.guid)"
                 />
                 <UBadge
