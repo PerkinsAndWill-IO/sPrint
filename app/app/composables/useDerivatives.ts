@@ -172,6 +172,7 @@ export function useDerivatives() {
       zip: exportOptions.zip
     })
 
+    let httpStatus: number | undefined
     try {
       const regions = selectedFilesList.value.map(f => f.region).filter(Boolean)
       const exportRegion = regions.length > 0 ? regions[0] : undefined
@@ -186,13 +187,18 @@ export function useDerivatives() {
           options: { mergeScope: exportOptions.mergeScope, zip: exportOptions.zip, modelFolders: exportOptions.modelFolders }
         })
       })
+      httpStatus = response.status
       if (response.status === 401) {
         await $fetch('/api/auth/logout')
         navigateTo('/', { external: true })
         return
       }
       if (!response.ok) {
-        throw new Error(`Download failed: ${response.statusText}`)
+        const body: unknown = await response.json().catch(() => null)
+        const detail = body && typeof body === 'object' && 'statusMessage' in body && typeof body.statusMessage === 'string'
+          ? body.statusMessage
+          : response.statusText
+        throw new Error(`Download failed (HTTP ${response.status})${detail ? `: ${detail}` : ''}`)
       }
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
@@ -223,7 +229,10 @@ export function useDerivatives() {
     } catch (e: unknown) {
       exportError.value = e instanceof Error ? e.message : 'Download failed'
       posthog?.capture('export_failed', {
-        error: e instanceof Error ? e.message : 'Download failed'
+        error: e instanceof Error ? e.message : 'Download failed',
+        http_status: httpStatus,
+        file_count: filesToExport.length,
+        total_derivatives: filesToExport.reduce((sum, f) => sum + f.derivatives.length, 0)
       })
     } finally {
       exporting.value = false

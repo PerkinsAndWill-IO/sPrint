@@ -1,5 +1,27 @@
 const APS_BASE_URL = 'https://developer.api.autodesk.com'
 
+// Share the budget across models and requests in this server instance.
+// A slot covers signing, downloading, and consuming the response body.
+const MAX_CONCURRENT_DOWNLOADS = 32
+let activeDownloads = 0
+const waitingDownloads: Array<() => void> = []
+
+async function withDownloadSlot<T>(download: () => Promise<T>): Promise<T> {
+  if (activeDownloads >= MAX_CONCURRENT_DOWNLOADS) {
+    await new Promise<void>(resolve => waitingDownloads.push(resolve))
+  } else {
+    activeDownloads++
+  }
+
+  try {
+    return await download()
+  } finally {
+    const next = waitingDownloads.shift()
+    if (next) next()
+    else activeDownloads--
+  }
+}
+
 interface SignedCookieInfo {
   url: string
   policy: string
@@ -117,11 +139,20 @@ export interface DerivativeRef {
 }
 
 export async function downloadAllDerivatives(urn: string, derivatives: DerivativeRef[], token: string, region?: string): Promise<DerivativeFile[]> {
+  let failed = false
+  let failure: unknown
   return Promise.all(
-    derivatives.map(async (d) => {
-      const signedInfo = await getSignedDerivativeUrl(urn, d.urn, token, region)
-      return downloadDerivative(signedInfo, d.urn, d.name)
-    })
+    derivatives.map(d => withDownloadSlot(async () => {
+      if (failed) throw failure
+      try {
+        const signedInfo = await getSignedDerivativeUrl(urn, d.urn, token, region)
+        return await downloadDerivative(signedInfo, d.urn, d.name)
+      } catch (error) {
+        failed = true
+        failure = error
+        throw error
+      }
+    }))
   )
 }
 
