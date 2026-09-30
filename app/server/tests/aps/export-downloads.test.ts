@@ -136,6 +136,23 @@ function unzip(archive: Buffer) {
 }
 
 describe('large PDF exports over HTTP', () => {
+  it('preserves distinct sheets with identical names when extracting a ZIP', async () => {
+    const body = exportRequest(3)
+    body.options.zip = true
+    body.files[0]!.derivatives.forEach((sheet, i) => {
+      sheet.name = i === 2 ? 'Partition charts (2)' : 'Partition charts'
+    })
+    const response = await postExport(body)
+    expect(response.status).toBe(200)
+    const entries = unzip(Buffer.from(await response.arrayBuffer()))
+    expect(new Set(entries.map(entry => entry.name)).size).toBe(3)
+    expect(entries.map(entry => entry.name)).toEqual(['Partition charts.pdf', 'Partition charts (3).pdf', 'Partition charts (2).pdf'])
+    for (const [i, entry] of entries.entries()) {
+      const pdf = await PDFDocument.load(entry.data)
+      expect(pdf.getPage(0).getWidth()).toBe([201, 202, 203][i])
+    }
+  })
+
   it('exports all 644 sheets in selection order without exhausting upstream sockets', async () => {
     const response = await postExport(exportRequest(644))
     expect(response.status).toBe(200)

@@ -44,7 +44,7 @@ const accordionItems = computed<AccordionItem[]>(() =>
     label: file.name,
     icon: 'i-sprint-file-rvt',
     value: file.itemId,
-    ui: { label: 'flex-1', trailingIcon: 'hidden' }
+    ui: { label: 'flex-1 min-w-0', trailingIcon: 'hidden' }
   }))
 )
 
@@ -112,20 +112,21 @@ function lastPublished(itemId: string): string | null {
     :items="accordionItems"
   >
     <template #default="{ item }">
-      <div class="flex flex-col items-start gap-1">
-        <div class="flex items-center gap-1">
-          <span class="truncate">{{ item.label }}</span>
+      <div class="flex flex-col items-start gap-1 min-w-0 w-full">
+        <div class="flex items-center gap-1 min-w-0 w-full">
+          <span class="truncate min-w-0">{{ item.label }}</span>
           <UButton
             size="xs"
             variant="ghost"
             color="neutral"
             icon="i-lucide-external-link"
+            class="shrink-0"
             :to="getAccFileUrl(item.value!)"
             target="_blank"
             @click.stop
           />
         </div>
-        <span v-if="lastPublished(item.value!)" class="text-xs text-muted">
+        <span v-if="lastPublished(item.value!)" class="text-xs text-muted break-words max-w-full">
           Last published: {{ lastPublished(item.value!) }}
         </span>
         <div class="flex flex-wrap gap-1 min-h-5">
