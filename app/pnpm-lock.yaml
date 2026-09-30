@@ -81,6 +81,9 @@ importers:
       eslint:
         specifier: ^9.39.5
         version: 9.39.5(jiti@2.7.0)
+      h3:
+        specifier: ^1.15.11
+        version: 1.15.11
       happy-dom:
         specifier: ^20.11.0
         version: 20.11.0
