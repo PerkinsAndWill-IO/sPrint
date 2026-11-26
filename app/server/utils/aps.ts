@@ -141,11 +141,19 @@ export function parseApsError(body: unknown): ApsErrorDetail {
   }
 }
 
-/** Logs a failed APS call: warn for 4xx, error for 5xx and network failures. */
-export function logApsFailure(log: Telemetry | undefined, context: { aps_status?: number } & Record<string, unknown>) {
+/**
+ * Logs a failed APS call: warn for 4xx; error plus an Error Tracking
+ * exception for 5xx and network failures. Callers mark the thrown error as
+ * logged, so the Nitro error hook does not report it a second time.
+ */
+export function logApsFailure(log: Telemetry | undefined, context: { aps_status?: number, aps_path?: unknown } & Record<string, unknown>) {
   const logger = log ?? getServerTelemetry()
-  if (!context.aps_status || context.aps_status >= 500) logger.error('aps.request_failed', context)
-  else logger.warn('aps.request_failed', context)
+  if (context.aps_status && context.aps_status < 500) {
+    logger.warn('aps.request_failed', context)
+    return
+  }
+  logger.error('aps.request_failed', context)
+  logger.captureException(new Error(`APS request failed (${context.aps_status ?? 'network error'}) ${String(context.aps_path ?? '')}`.trim()), context)
 }
 
 /** APS path without the host, for logs. */

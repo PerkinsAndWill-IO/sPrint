@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { parseApsError } from '../../utils/aps'
+import { describe, expect, it, vi } from 'vitest'
+import type { Telemetry } from '#shared/telemetry/telemetry'
+import { logApsFailure, parseApsError } from '../../utils/aps'
 import { apsUserIdFromToken } from '../../utils/telemetry'
 
 describe('parseApsError', () => {
@@ -37,5 +38,30 @@ describe('apsUserIdFromToken', () => {
     expect(apsUserIdFromToken('opaque-token')).toBeUndefined()
     expect(apsUserIdFromToken('a.not-json.c')).toBeUndefined()
     expect(apsUserIdFromToken(encode({ sub: 'x' }))).toBeUndefined()
+  })
+})
+
+describe('logApsFailure', () => {
+  const fakeLog = () => {
+    const calls = { warn: vi.fn(), error: vi.fn(), captureException: vi.fn() }
+    return { calls, log: calls as unknown as Telemetry }
+  }
+
+  it('warns on 4xx without an exception', () => {
+    const { calls, log } = fakeLog()
+    logApsFailure(log, { aps_status: 403, aps_path: '/project/v1/hubs' })
+    expect(calls.warn).toHaveBeenCalledOnce()
+    expect(calls.error).not.toHaveBeenCalled()
+    expect(calls.captureException).not.toHaveBeenCalled()
+  })
+
+  it('logs an error and captures one exception on 5xx and network failures', () => {
+    for (const status of [503, undefined]) {
+      const { calls, log } = fakeLog()
+      logApsFailure(log, { aps_status: status, aps_path: '/project/v1/hubs' })
+      expect(calls.error).toHaveBeenCalledOnce()
+      expect(calls.captureException).toHaveBeenCalledOnce()
+      expect(calls.warn).not.toHaveBeenCalled()
+    }
   })
 })

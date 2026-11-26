@@ -138,10 +138,9 @@ export async function downloadDerivative(signedInfo: SignedCookieInfo, derivativ
     const body = await response.text().catch(() => '')
     // The signed CDN URL is a credential: log the status only
     const logger = log ?? getServerTelemetry()
-    logger.error('aps.derivative_download_failed', {
-      cdn_status: response.status,
-      duration_ms: Date.now() - started
-    })
+    const context = { cdn_status: response.status, duration_ms: Date.now() - started }
+    logger.error('aps.derivative_download_failed', context)
+    logger.captureException(new Error(`Derivative download failed (${response.status})`), context)
     throw markLogged(new Error(`Failed to download derivative: ${response.status} ${body}`))
   }
 
