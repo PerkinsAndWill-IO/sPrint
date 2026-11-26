@@ -1,3 +1,4 @@
+import type { Telemetry } from '#shared/telemetry/telemetry'
 import type { ApsManifest, ApsManifestChild, ApsManifestDerivative, Derivative, DerivativeFormat, ViewSet } from '~/types/derivatives'
 
 export interface ManifestResponse {
@@ -23,10 +24,10 @@ export function emptyManifestResponse(): ManifestResponse {
  * empty, or malformed manifest yields an empty response (the UI renders
  * its "no published print sets" state) instead of throwing.
  */
-export function normalizeManifestResponse(manifest: ApsManifest | null | undefined): ManifestResponse {
+export function normalizeManifestResponse(manifest: ApsManifest | null | undefined, log?: Telemetry): ManifestResponse {
   if (!manifest) return emptyManifestResponse()
   if (!Array.isArray(manifest.derivatives)) {
-    console.warn('[manifest] Malformed manifest: derivatives is not an array')
+    log?.warn('aps.manifest_malformed', { reason: 'derivatives is not an array', manifest_status: manifest.status })
     return emptyManifestResponse()
   }
 
@@ -36,7 +37,7 @@ export function normalizeManifestResponse(manifest: ApsManifest | null | undefin
     return emptyManifestResponse()
   }
   if (firstDerivative.children !== undefined && !Array.isArray(firstDerivative.children)) {
-    console.warn('[manifest] Malformed manifest: derivative children is not an array')
+    log?.warn('aps.manifest_malformed', { reason: 'derivative children is not an array', manifest_status: manifest.status })
   }
 
   const derivatives = filterDerivatives(firstDerivative.children)

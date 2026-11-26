@@ -46,9 +46,11 @@ export function useDerivatives() {
       revitVersionSupported: false
     })
 
+    const started = performance.now()
+    let stage = 'item-urn'
     try {
       const itemResult = await api('/api/aps/item-urn', {
-        params: { projectId, itemId }
+        params: { projectId, itemId, region }
       })
 
       const entry = selectedFiles.get(itemId)
@@ -57,6 +59,7 @@ export function useDerivatives() {
       entry.name = itemResult.name || name
       entry.lastModifiedTime = itemResult.lastModifiedTime
 
+      stage = 'manifest'
       const manifestResult = await api('/api/aps/manifest', {
         params: { urn: itemResult.urn, region }
       })
@@ -71,7 +74,19 @@ export function useDerivatives() {
       if (!manifestResult.revitVersionSupported && manifestResult.derivatives.length > 0) {
         entry.error = `Revit version ${manifestResult.revitVersion || 'unknown'} is not supported. Requires 2022 or later.`
       }
+
+      useTelemetry().track('file_selected', {
+        project_id: projectId,
+        region,
+        derivative_count: manifestResult.derivatives.length,
+        pdf_count: manifestResult.derivatives.filter(d => d.format === 'pdf').length,
+        view_set_count: manifestResult.viewSets.length,
+        revit_version: manifestResult.revitVersion,
+        revit_version_supported: manifestResult.revitVersionSupported,
+        duration_ms: Math.round(performance.now() - started)
+      })
     } catch (e: unknown) {
+      reportFailure('file.load_failed', { project_id: projectId, item_id: itemId, region, stage }, e)
       const entry = selectedFiles.get(itemId)
       if (entry) {
         entry.error = e instanceof Error ? e.message : 'Failed to load manifest'
@@ -162,21 +177,21 @@ export function useDerivatives() {
     exportError.value = null
     downloadComplete.value = false
 
-    // Track export started
-    const { $posthog } = useNuxtApp()
-    const posthog = $posthog?.()
-    posthog?.capture('export_started', {
+    const telemetry = useTelemetry()
+    const regions = selectedFilesList.value.map(f => f.region).filter(Boolean)
+    const exportRegion = regions.length > 0 ? regions[0] : undefined
+    const exportContext = {
       file_count: filesToExport.length,
       total_derivatives: filesToExport.reduce((sum, f) => sum + f.derivatives.length, 0),
       merge_scope: exportOptions.mergeScope,
-      zip: exportOptions.zip
-    })
+      zip: exportOptions.zip,
+      region: exportRegion
+    }
+    telemetry.track('export_started', exportContext)
+    const started = performance.now()
 
     let httpStatus: number | undefined
     try {
-      const regions = selectedFilesList.value.map(f => f.region).filter(Boolean)
-      const exportRegion = regions.length > 0 ? regions[0] : undefined
-
       const response = await fetch('/api/aps/export-derivatives', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -189,6 +204,7 @@ export function useDerivatives() {
       })
       httpStatus = response.status
       if (response.status === 401) {
+        telemetry.track('export_failed', { ...exportContext, error: 'session expired', http_status: 401 })
         await $fetch('/api/auth/logout')
         navigateTo('/', { external: true })
         return
@@ -221,19 +237,22 @@ export function useDerivatives() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
       downloadComplete.value = true
-      posthog?.capture('export_completed', {
-        file_count: filesToExport.length,
-        total_derivatives: filesToExport.reduce((sum, f) => sum + f.derivatives.length, 0),
-        format: contentType.includes('application/pdf') ? 'pdf' : 'zip'
+      telemetry.track('export_completed', {
+        ...exportContext,
+        format: contentType.includes('application/pdf') ? 'pdf' : 'zip',
+        size_bytes: blob.size,
+        duration_ms: Math.round(performance.now() - started)
       })
     } catch (e: unknown) {
       exportError.value = e instanceof Error ? e.message : 'Download failed'
-      posthog?.capture('export_failed', {
-        error: e instanceof Error ? e.message : 'Download failed',
+      const failure = {
+        ...exportContext,
+        error: exportError.value,
         http_status: httpStatus,
-        file_count: filesToExport.length,
-        total_derivatives: filesToExport.reduce((sum, f) => sum + f.derivatives.length, 0)
-      })
+        duration_ms: Math.round(performance.now() - started)
+      }
+      telemetry.track('export_failed', failure)
+      telemetry.error('export.failed', failure)
     } finally {
       exporting.value = false
     }

@@ -7,6 +7,7 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'projectId is required' })
   }
 
+  const log = useRequestTelemetry(event, { project_id: projectId, folder_id: folderId, external: true })
   const token = await getApsAccessToken(event)
 
   // Get folder info if folderId is provided
@@ -14,7 +15,9 @@ export default eventHandler(async (event) => {
   if (folderId) {
     const folderResponse = await apsFetch<{ data: { attributes: { displayName?: string, name?: string } } }>(
       token,
-      `/data/v1/projects/${projectId}/folders/${folderId}`
+      `/data/v1/projects/${projectId}/folders/${folderId}`,
+      undefined,
+      log
     )
     folderName = folderResponse.data.attributes.displayName || folderResponse.data.attributes.name || 'External Project'
   }
@@ -22,7 +25,9 @@ export default eventHandler(async (event) => {
   // Get folder contents
   const contentsResponse = await apsFetch<{ data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }> }>(
     token,
-    `/data/v1/projects/${projectId}/folders/${folderId}/contents`
+    `/data/v1/projects/${projectId}/folders/${folderId}/contents`,
+    undefined,
+    log
   )
 
   return {

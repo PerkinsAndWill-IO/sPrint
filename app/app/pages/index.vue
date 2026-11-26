@@ -19,7 +19,7 @@ onMounted(async () => {
     }
   } catch (error) {
     // If check fails, stay on landing page
-    console.error('Auth check failed:', error)
+    useTelemetry().warn('auth.check_failed', { error_message: errorMessage(error) })
   }
 })
 
@@ -28,13 +28,14 @@ const isLoading = ref(false)
 async function handleLogin() {
   try {
     isLoading.value = true
+    useTelemetry().track('sign_in_started')
     const response = await api<{ authUrl: string }>('/api/auth/aps/authorize')
 
     if (response?.authUrl) {
       window.location.href = response.authUrl
     }
   } catch (error) {
-    console.error('Failed to initiate login:', error)
+    useTelemetry().error('auth.authorize_failed', { status: errorStatus(error), error_message: errorMessage(error) })
     isLoading.value = false
   }
 }

@@ -1,8 +1,10 @@
 export default eventHandler(async (event) => {
   const config = useRuntimeConfig(event)
   const code = getCookie(event, 'aps_auth_code')
+  const log = useRequestTelemetry(event)
 
   if (!code) {
+    log.warn('auth.exchange_failed', { reason: 'missing_code_cookie' })
     throw createError({ statusCode: 400, message: 'No authorization code' })
   }
 
@@ -30,6 +32,7 @@ export default eventHandler(async (event) => {
   tokenData.append('code', code)
   tokenData.append('redirect_uri', redirectUri)
 
+  const started = Date.now()
   const tokenResponse = await fetch('https://developer.api.autodesk.com/authentication/v2/token', {
     method: 'POST',
     headers: {
@@ -40,10 +43,18 @@ export default eventHandler(async (event) => {
   })
 
   if (!tokenResponse.ok) {
-    throw createError({
+    const body = await tokenResponse.text().catch(() => '')
+    log.error('auth.exchange_failed', {
+      reason: 'token_request_failed',
+      aps_path: '/authentication/v2/token',
+      aps_status: tokenResponse.status,
+      ...parseApsError(body),
+      duration_ms: Date.now() - started
+    })
+    throw markLogged(createError({
       statusCode: tokenResponse.status,
       message: 'Token exchange failed'
-    })
+    }))
   }
 
   const tokens = await tokenResponse.json()
@@ -72,6 +83,8 @@ export default eventHandler(async (event) => {
     sameSite: 'lax',
     maxAge: 60
   })
+
+  log.info('auth.signed_in', { user_id: apsUserIdFromToken(tokens.access_token), duration_ms: Date.now() - started })
 
   return { success: true }
 })

@@ -11,11 +11,14 @@ export default eventHandler(async (event) => {
   const projectId = validateApsId(query.projectId as string)
   const folderId = validateApsId(query.folderId as string)
 
+  const log = useRequestTelemetry(event, { project_id: projectId, folder_id: folderId, region: query.region })
   const token = await getApsAccessToken(event)
 
   const response = await apsFetch<{ data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }> }>(
     token,
-    `/data/v1/projects/${projectId}/folders/${folderId}/contents`
+    `/data/v1/projects/${projectId}/folders/${folderId}/contents`,
+    undefined,
+    log
   )
 
   return normalizeFolderContents(response.data)

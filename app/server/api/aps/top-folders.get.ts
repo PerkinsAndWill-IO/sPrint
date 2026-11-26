@@ -11,11 +11,14 @@ export default eventHandler(async (event) => {
   const hubId = validateApsId(query.hubId as string)
   const projectId = validateApsId(query.projectId as string)
 
+  const log = useRequestTelemetry(event, { hub_id: hubId, project_id: projectId, region: query.region })
   const token = await getApsAccessToken(event)
 
   const response = await apsFetch<{ data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }> }>(
     token,
-    `/project/v1/hubs/${hubId}/projects/${projectId}/topFolders`
+    `/project/v1/hubs/${hubId}/projects/${projectId}/topFolders`,
+    undefined,
+    log
   )
 
   const folders: ApsFolderContent[] = response.data.map(item => ({

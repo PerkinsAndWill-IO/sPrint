@@ -25,11 +25,14 @@ export default eventHandler(async (event) => {
   const projectId = validateApsId(query.projectId as string)
   const itemId = validateApsId(query.itemId as string)
 
+  const log = useRequestTelemetry(event, { project_id: projectId, item_id: itemId, region: query.region })
   const token = await getApsAccessToken(event)
 
   const response = await apsFetch<ApsTipResponse>(
     token,
-    `/data/v1/projects/${projectId}/items/${itemId}/tip`
+    `/data/v1/projects/${projectId}/items/${itemId}/tip`,
+    undefined,
+    log
   )
 
   return normalizeItemUrn(response.data)

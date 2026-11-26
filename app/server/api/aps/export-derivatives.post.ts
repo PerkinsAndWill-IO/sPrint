@@ -19,6 +19,9 @@ export default eventHandler(async (event) => {
   }
   const { fileGroups, options } = result
 
+  const log = useRequestTelemetry(event, { region: body.region })
+  const started = Date.now()
+
   const rawToken = await getApsAccessToken(event)
 
   const region = validateRegion(body.region as string | undefined)
@@ -29,8 +32,9 @@ export default eventHandler(async (event) => {
 
   // Download all derivatives from all file groups in parallel
   const allDownloads = await Promise.all(
-    fileGroups.map(group => downloadAllDerivatives(group.urn, group.derivatives, rawToken, region))
+    fileGroups.map(group => downloadAllDerivatives(group.urn, group.derivatives, rawToken, region, log))
   )
+  const downloadMs = Date.now() - started
 
   // --- Partition helper: split files into PDFs and non-PDFs ---
   function partitionByPdf(files: DerivativeFile[]): { pdfs: DerivativeFile[], others: DerivativeFile[] } {
@@ -102,6 +106,17 @@ export default eventHandler(async (event) => {
 
   // Check if all output files are PDFs
   const allPdf = outputGroups.every(g => g.files.every(f => inferMimeType(f.name) === 'application/pdf'))
+
+  log.info('export.prepared', {
+    file_group_count: fileGroups.length,
+    derivative_count: fileGroups.reduce((sum, g) => sum + g.derivatives.length, 0),
+    output_file_count: totalFiles,
+    all_pdf: allPdf,
+    merge_scope: options.mergeScope,
+    zip: options.zip,
+    download_ms: downloadMs,
+    duration_ms: Date.now() - started
+  })
 
   // --- Package phase ---
   if (!options.zip) {

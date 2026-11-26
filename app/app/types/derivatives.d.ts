@@ -24,6 +24,7 @@ export interface ApsManifestDerivative {
 
 export interface ApsManifest {
   urn: string
+  status?: string
   derivatives: ApsManifestDerivative[]
 }
 

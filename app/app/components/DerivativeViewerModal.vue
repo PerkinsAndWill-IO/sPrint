@@ -113,6 +113,7 @@ async function initForgeViewer() {
     loading.value = false
   } catch (e) {
     viewerError.value = e instanceof Error ? e.message : 'Failed to load 3D viewer'
+    useTelemetry().warn('viewer.load_failed', { format: props.format, region: props.region, error_message: viewerError.value })
     loading.value = false
   }
 }
@@ -138,6 +139,7 @@ watch(open, async (val) => {
         jsonData.value = await res.json()
       } catch (e) {
         jsonError.value = e instanceof Error ? e.message : 'Failed to load JSON'
+        useTelemetry().warn('viewer.load_failed', { format: props.format, region: props.region, error_message: jsonError.value })
       } finally {
         loading.value = false
       }
