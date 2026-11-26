@@ -165,7 +165,9 @@ export function useDerivatives() {
           pdfSort.value
         ).map(d => ({ urn: d.urn, name: d.name })),
         name: file.name.replace(/\.rvt$/i, ''),
-        projectName: file.projectName
+        projectName: file.projectName,
+        // Per model: a selection can span hubs in different regions
+        region: file.region
       }))
       .filter(f => f.derivatives.length > 0)
 
@@ -178,14 +180,15 @@ export function useDerivatives() {
     downloadComplete.value = false
 
     const telemetry = useTelemetry()
-    const regions = selectedFilesList.value.map(f => f.region).filter(Boolean)
-    const exportRegion = regions.length > 0 ? regions[0] : undefined
+    const regions = [...new Set(filesToExport.map(f => f.region).filter(Boolean))]
+    const exportRegion = regions[0]
     const exportContext = {
       file_count: filesToExport.length,
       total_derivatives: filesToExport.reduce((sum, f) => sum + f.derivatives.length, 0),
       merge_scope: exportOptions.mergeScope,
       zip: exportOptions.zip,
-      region: exportRegion
+      region: exportRegion,
+      regions
     }
     telemetry.track('export_started', exportContext)
     const started = performance.now()
@@ -197,7 +200,6 @@ export function useDerivatives() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           files: filesToExport,
-          region: exportRegion,
           filename: downloadBaseName,
           options: { mergeScope: exportOptions.mergeScope, zip: exportOptions.zip, modelFolders: exportOptions.modelFolders }
         })

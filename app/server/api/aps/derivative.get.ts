@@ -7,10 +7,11 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'urn and derivativeUrn are required' })
   }
 
-  const log = useRequestTelemetry(event, { region: query.region })
+  let log = useRequestTelemetry(event, { region: query.region })
   const urn = validateUrn(query.urn as string)
   const derivativeUrnValue = validateDerivativeUrn(query.derivativeUrn as string)
-  const region = validateRegion(query.region as string | undefined)
+  const region = validateRegion(query.region, log)
+  log = useRequestTelemetry(event, { region })
   const displayName = typeof query.name === 'string' ? query.name : undefined
 
   const token = await getApsAccessToken(event)

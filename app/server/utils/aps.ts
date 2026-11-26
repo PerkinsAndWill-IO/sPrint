@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
 import type { Telemetry } from '#shared/telemetry/telemetry'
+import type { ApsRegion } from '#shared/aps/region'
 import { getServerTelemetry, markLogged, useRequestTelemetry } from './telemetry'
 
 const APS_BASE_URL = 'https://developer.api.autodesk.com'
@@ -78,14 +79,26 @@ export async function getApsAccessToken(event: H3Event): Promise<string> {
   return await refreshAccessToken(event)
 }
 
-export function modelDerivativePath(path: string, region?: string): string {
+/**
+ * Model Derivative routing. EMEA keeps its dedicated `/regions/eu/` URI
+ * (where the `region` header is ignored); every other region uses the
+ * global URI plus the `region` header (regionHeader). Model Derivative
+ * change history, 2023-12-01 and 2025-06-30:
+ * https://aps.autodesk.com/en/docs/model-derivative/v2/change_history
+ */
+export function modelDerivativePath(path: string, region?: ApsRegion): string {
   if (region === 'EMEA') {
     return path.replace('/modelderivative/v2/', '/modelderivative/v2/regions/eu/')
   }
   return path
 }
 
-export function regionHeader(region?: string): Record<string, string> {
+/**
+ * Model Derivative `region` header (US, EMEA, AUS, CAN, DEU, IND, JPN, GBR).
+ * US is the default, so it is left out.
+ * https://aps.autodesk.com/en/docs/model-derivative/v2/reference/urn-manifest-derivativeurn-GET
+ */
+export function regionHeader(region?: ApsRegion): Record<string, string> {
   if (region && region !== 'US') {
     return { Region: region }
   }
@@ -167,7 +180,7 @@ function apsPathOf(url: string): string {
  * route's telemetry (useRequestTelemetry) so the line also carries the route,
  * user and hub/project ids. Callers see only the sanitized status.
  */
-export async function apsFetch<T>(token: string, path: string, region?: string, log?: Telemetry): Promise<T> {
+export async function apsFetch<T>(token: string, path: string, region?: ApsRegion, log?: Telemetry): Promise<T> {
   const url = buildApsUrl(path)
   const started = Date.now()
   try {
@@ -194,5 +207,29 @@ export async function apsFetch<T>(token: string, path: string, region?: string, 
       statusCode: status,
       statusMessage: sanitizeApsError(status, fetchErr.data)
     }))
+  }
+}
+
+/**
+ * GET an APS endpoint where a 4xx is an expected answer, not a failure (for
+ * example probing which hub holds a project). Returns undefined instead of
+ * throwing. 403/404 (not this resource) are logged at debug only; anything
+ * else (401, 429, 5xx, network) is logged as a failure, still without
+ * throwing.
+ */
+export async function apsTryFetch<T>(token: string, path: string, log?: Telemetry): Promise<T | undefined> {
+  const url = buildApsUrl(path)
+  const started = Date.now()
+  try {
+    return await $fetch(url, { headers: { Authorization: `Bearer ${token}` } }) as T
+  } catch (err: unknown) {
+    const fetchErr = err as { status?: number, data?: unknown, message?: string }
+    const context = { aps_path: apsPathOf(url), aps_status: fetchErr.status, duration_ms: Date.now() - started }
+    if (fetchErr.status === 403 || fetchErr.status === 404) {
+      log?.debug('aps.probe_miss', context)
+    } else {
+      logApsFailure(log, { ...context, ...parseApsError(fetchErr.data ?? fetchErr.message), network_error: fetchErr.status ? undefined : true })
+    }
+    return undefined
   }
 }

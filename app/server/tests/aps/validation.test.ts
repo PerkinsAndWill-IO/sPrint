@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import type { Telemetry } from '#shared/telemetry/telemetry'
 import {
   validateApsId,
   validateUrn,
@@ -78,15 +79,35 @@ describe('validateDerivativeUrn', () => {
 })
 
 describe('validateRegion', () => {
-  it('accepts valid region values', () => {
-    expect(validateRegion('US')).toBe('US')
-    expect(validateRegion('EMEA')).toBe('EMEA')
+  const fakeLog = () => {
+    const warn = vi.fn()
+    return { warn, log: { warn } as unknown as Telemetry }
+  }
+
+  it('accepts every documented APS region', () => {
+    for (const region of ['US', 'EMEA', 'AUS', 'CAN', 'DEU', 'IND', 'JPN', 'GBR']) {
+      expect(validateRegion(region)).toBe(region)
+    }
     expect(validateRegion(undefined)).toBeUndefined()
+    expect(validateRegion('')).toBeUndefined()
   })
 
-  it('rejects invalid region values', () => {
-    expect(() => validateRegion('EVIL')).toThrow()
-    expect(() => validateRegion('../etc')).toThrow()
+  it('normalizes case and aliases', () => {
+    expect(validateRegion('emea')).toBe('EMEA')
+    expect(validateRegion(' can ')).toBe('CAN')
+    expect(validateRegion('EU')).toBe('EMEA')
+    expect(validateRegion('APAC')).toBe('AUS')
+    expect(validateRegion('AU')).toBe('AUS')
+    expect(validateRegion('CA')).toBe('CAN')
+    expect(validateRegion('UK')).toBe('GBR')
+  })
+
+  it('falls back to US (undefined) on unknown values and logs a warning, never throws', () => {
+    for (const value of ['EVIL', '../etc', 'US\r\nX-Injected: 1', ['US']]) {
+      const { warn, log } = fakeLog()
+      expect(validateRegion(value, log)).toBeUndefined()
+      expect(warn).toHaveBeenCalledWith('aps.region_unknown', expect.objectContaining({ fallback: 'US' }))
+    }
   })
 })
 

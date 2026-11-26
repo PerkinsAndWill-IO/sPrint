@@ -1,14 +1,22 @@
+import { normalizeApsRegion } from '#shared/aps/region'
 import { normalizeFolderContents } from '../../utils/aps-normalize'
+import { resolveProjectRegion } from '../../utils/aps-region'
+import { validateApsId } from '../../utils/validation'
 
 export default eventHandler(async (event) => {
-  const { projectId, folderId } = getQuery(event)
+  const query = getQuery(event)
+  const { folderId } = query
 
-  if (!projectId) {
+  if (!query.projectId) {
     throw createError({ statusCode: 400, statusMessage: 'projectId is required' })
   }
+  const projectId = validateApsId(query.projectId as string)
 
   const log = useRequestTelemetry(event, { project_id: projectId, folder_id: folderId, external: true })
   const token = await getApsAccessToken(event)
+
+  // Runs alongside the folder calls; never fails the request
+  const regionPromise = resolveProjectRegion(token, projectId, normalizeApsRegion(query.regionHint), log)
 
   // Get folder info if folderId is provided
   let folderName = 'External Project'
@@ -30,10 +38,14 @@ export default eventHandler(async (event) => {
     log
   )
 
+  const { region, hubId } = await regionPromise
+
   return {
-    projectId: projectId as string,
+    projectId,
     folderId: folderId as string,
     folderName,
+    region,
+    hubId,
     contents: normalizeFolderContents(contentsResponse.data)
   }
 })

@@ -9,6 +9,7 @@ import {
 import type { FavoriteProject } from '~/utils/favorites'
 import { isFavorited, toggleFavoriteInList } from '~/utils/favorites'
 import { shouldLoadChildren } from '~/utils/tree-loading'
+import { regionFromAccUrl } from '#shared/aps/region'
 
 function makeLoadingPlaceholder(parentId: string): ApsTreeItem {
   return {
@@ -90,16 +91,45 @@ export function useApsProjects() {
     }
   }
 
+  /**
+   * Fills in the region of a hub added by id, or of a project added by link
+   * before sPrint stored one. Without it, model calls go to the US data
+   * centre and fail for hubs elsewhere. Best effort: on failure the node
+   * keeps no region (US), as before.
+   */
+  async function ensureRegion(item: ApsTreeItem) {
+    if (item._region) return
+    const params = item._folderId
+      ? (item._projectId ? { projectId: item._projectId } : undefined)
+      : (item._hubId && item._hubId !== 'external' ? { hubId: item._hubId } : undefined)
+    if (!params) return
+    try {
+      const resolved = await api('/api/aps/region', { params })
+      if (!resolved.region) return
+      item._region = resolved.region
+      if (item._folderId) {
+        storedExternalProjects.value = storedExternalProjects.value.map(p =>
+          p.projectId === item._projectId && p.folderId === item._folderId ? { ...p, region: resolved.region } : p
+        )
+      }
+    } catch {
+      // `api` already logged the failed call
+    }
+  }
+
   async function loadProjects(item: ApsTreeItem) {
     const hubId = item._hubId
     if (!hubId) return
 
     const started = performance.now()
+    // Hubs from the hub list carry their region; a hub added by id does not
+    const manualHub = !item._region
+    await ensureRegion(item)
     const projects = await api('/api/aps/projects', { params: { hubId, region: item._region } })
     useTelemetry().track('projects_loaded', {
       hub_id: hubId,
       region: item._region,
-      manual_hub: !item._region,
+      manual_hub: manualHub,
       project_count: projects.length,
       duration_ms: Math.round(performance.now() - started)
     })
@@ -191,6 +221,8 @@ export function useApsProjects() {
         case 'project':
           // External projects already have children loaded, but if not, use folder contents
           if (item._folderId) {
+            // Projects added by link before regions were stored
+            await ensureRegion(item)
             await loadFolderContents({ ...item, _apsId: `folder-${item._folderId}` }, item._apsId)
           } else {
             await loadTopFolders(item)
@@ -335,13 +367,16 @@ export function useApsProjects() {
     let response
     try {
       response = await api('/api/aps/project-info', {
-        params: { projectId: parsed.projectId, folderId: parsed.folderId }
+        // The link's host names the region (acc.can.autodesk.com, ...); the
+        // server confirms it from the project's hub
+        params: { projectId: parsed.projectId, folderId: parsed.folderId, regionHint: regionFromAccUrl(url) }
       })
     } catch (error) {
       reportFailure('external_project.add_failed', { project_id: parsed.projectId, folder_id: parsed.folderId }, error)
       throw error
     }
-    useTelemetry().track('external_project_added', { project_id: parsed.projectId, item_count: response.contents.length })
+    const region = response.region
+    useTelemetry().track('external_project_added', { project_id: parsed.projectId, region, item_count: response.contents.length })
 
     const children: ApsTreeItem[] = response.contents.map((content): ApsTreeItem => {
       if (content.type === 'folders') {
@@ -350,6 +385,7 @@ export function useApsProjects() {
           _apsType: 'folder',
           _apsId: `folder-${content.id}`,
           _projectId: parsed.projectId,
+          _region: region,
           _projectName: response.folderName,
           children: [makeLoadingPlaceholder(`folder-${content.id}`)]
         }
@@ -360,6 +396,7 @@ export function useApsProjects() {
         _apsType: 'item',
         _apsId: `item-${content.id}`,
         _projectId: parsed.projectId,
+        _region: region,
         _projectName: response.folderName
       }
     })
@@ -372,6 +409,7 @@ export function useApsProjects() {
       _apsId: `project-${parsed.projectId}-${parsed.folderId}`,
       _projectId: parsed.projectId,
       _folderId: parsed.folderId,
+      _region: region,
       _projectName: response.folderName,
       _loaded: true,
       children
@@ -399,7 +437,8 @@ export function useApsProjects() {
     storedExternalProjects.value = upsertStoredExternalProject(storedExternalProjects.value, {
       projectId: parsed.projectId,
       folderId: parsed.folderId,
-      name: response.folderName
+      name: response.folderName,
+      region
     })
   }
 

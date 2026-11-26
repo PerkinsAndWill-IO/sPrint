@@ -9,9 +9,10 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'urn is required' })
   }
 
-  const log = useRequestTelemetry(event, { region: query.region })
+  let log = useRequestTelemetry(event, { region: query.region })
   const urn = validateUrn(query.urn as string)
-  const region = validateRegion(query.region as string | undefined)
+  const region = validateRegion(query.region, log)
+  log = useRequestTelemetry(event, { region })
 
   const token = await getApsAccessToken(event)
 

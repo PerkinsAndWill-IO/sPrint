@@ -1,4 +1,7 @@
 import { z } from 'zod'
+import type { Telemetry } from '#shared/telemetry/telemetry'
+import { normalizeApsRegion, type ApsRegion } from '#shared/aps/region'
+import { getServerTelemetry } from './telemetry'
 
 const APS_ID_PATTERN = /^[a-zA-Z0-9._:~-]+$/
 const URN_PATTERN = /^[a-zA-Z0-9_\-+=]+$/
@@ -22,9 +25,6 @@ const derivativeUrnSchema = z
   .max(2000, 'Derivative URN too long')
   .refine(val => !/[\r\n]/.test(val), 'Derivative URN must not contain newlines')
 
-const VALID_REGIONS = ['US', 'EMEA', 'CAN'] as const
-const regionSchema = z.enum(VALID_REGIONS)
-
 export function validateApsId(value: string): string {
   return apsIdSchema.parse(value)
 }
@@ -37,9 +37,22 @@ export function validateDerivativeUrn(value: string): string {
   return derivativeUrnSchema.parse(value)
 }
 
-export function validateRegion(value: string | undefined): string | undefined {
-  if (value === undefined || value === '') return undefined
-  return regionSchema.parse(value)
+/**
+ * Canonical APS region for a request parameter. Accepts every region
+ * Autodesk documents, in any case, plus aliases (EU, APAC, CA, ...). An
+ * unknown value never fails the request: it is logged and treated as US
+ * (undefined), the APS default, and is never forwarded to Autodesk.
+ */
+export function validateRegion(value: unknown, log?: Telemetry): ApsRegion | undefined {
+  if (value === undefined || value === null || value === '') return undefined
+  const region = normalizeApsRegion(value)
+  if (!region) {
+    (log ?? getServerTelemetry()).warn('aps.region_unknown', {
+      region_raw: String(value).slice(0, 32),
+      fallback: 'US'
+    })
+  }
+  return region
 }
 
 /**

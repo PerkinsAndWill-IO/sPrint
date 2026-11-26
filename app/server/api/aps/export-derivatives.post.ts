@@ -19,12 +19,15 @@ export default eventHandler(async (event) => {
   }
   const { fileGroups, options } = result
 
-  const log = useRequestTelemetry(event, { region: body.region })
+  let log = useRequestTelemetry(event, { region: body.region })
   const started = Date.now()
 
   const rawToken = await getApsAccessToken(event)
 
-  const region = validateRegion(body.region as string | undefined)
+  // Each model is fetched from its own region; the top-level region is the
+  // fallback for older clients that send one region for the whole export
+  const defaultRegion = validateRegion(body.region, log)
+  if (defaultRegion) log = useRequestTelemetry(event, { region: defaultRegion })
 
   // Base name for the downloaded file(s); provided by the client
   // (model or project name), falls back to a generic name
@@ -32,7 +35,13 @@ export default eventHandler(async (event) => {
 
   // Download all derivatives from all file groups in parallel
   const allDownloads = await Promise.all(
-    fileGroups.map(group => downloadAllDerivatives(group.urn, group.derivatives, rawToken, region, log))
+    fileGroups.map(group => downloadAllDerivatives(
+      group.urn,
+      group.derivatives,
+      rawToken,
+      group.region ? validateRegion(group.region, log) : defaultRegion,
+      log
+    ))
   )
   const downloadMs = Date.now() - started
 

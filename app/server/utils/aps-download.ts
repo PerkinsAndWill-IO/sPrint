@@ -1,4 +1,5 @@
 import type { Telemetry } from '#shared/telemetry/telemetry'
+import type { ApsRegion } from '#shared/aps/region'
 import { logApsFailure, parseApsError } from './aps'
 import { getServerTelemetry, markLogged } from './telemetry'
 
@@ -97,7 +98,7 @@ export function inferMimeType(urn: string): string {
   return 'application/octet-stream'
 }
 
-export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string, token: string, region?: string, log?: Telemetry): Promise<SignedCookieInfo> {
+export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string, token: string, region?: ApsRegion, log?: Telemetry): Promise<SignedCookieInfo> {
   const encodedDerivativeUrn = encodeURIComponent(derivativeUrn)
   const basePath = modelDerivativePath(`/modelderivative/v2/designdata/${urn}/manifest/${encodedDerivativeUrn}/signedcookies?useCdn=true`, region)
   const url = `${APS_BASE_URL}${basePath}`
@@ -156,7 +157,7 @@ export interface DerivativeRef {
   name?: string
 }
 
-export async function downloadAllDerivatives(urn: string, derivatives: DerivativeRef[], token: string, region?: string, log?: Telemetry): Promise<DerivativeFile[]> {
+export async function downloadAllDerivatives(urn: string, derivatives: DerivativeRef[], token: string, region?: ApsRegion, log?: Telemetry): Promise<DerivativeFile[]> {
   let failed = false
   let failure: unknown
   return Promise.all(
@@ -178,6 +179,8 @@ interface FileGroup {
   urn: string
   derivatives: DerivativeRef[]
   name?: string
+  /** Raw region from the request; validated by the route */
+  region?: string
 }
 
 const MERGE_SCOPES = ['none', 'per-model', 'all'] as const
@@ -188,6 +191,8 @@ interface ExportBodyFileGroup {
   urn: string
   derivatives: DerivativeInput[]
   name?: string
+  /** Region of this model; files from several hubs can be exported together */
+  region?: string
 }
 
 interface ExportBody {
@@ -244,7 +249,7 @@ export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], op
       if (normalized.length === 0) {
         return { error: 'Each file must have a non-empty derivatives array' }
       }
-      normalizedGroups.push({ urn: group.urn, derivatives: normalized, name: group.name })
+      normalizedGroups.push({ urn: group.urn, derivatives: normalized, name: group.name, region: typeof group.region === 'string' ? group.region : undefined })
     }
     return { fileGroups: normalizedGroups, options }
   }

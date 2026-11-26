@@ -1,3 +1,5 @@
+import { ACC_BASE_URLS, normalizeApsRegion } from '#shared/aps/region'
+
 export function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
@@ -8,7 +10,8 @@ export function randomInt(min: number, max: number): number {
  * Supported formats:
  *  - docs.b360.autodesk.com/projects/{id}/folders/{urn}/detail  (BIM 360)
  *  - acc.autodesk.com/docs/files/projects/{id}?folderUrn={urn}  (ACC US)
- *  - acc.can.autodesk.com/docs/files/projects/{id}?folderUrn={urn} (ACC Canada)
+ *  - acc.can.autodesk.com/docs/files/projects/{id}?folderUrn={urn} (ACC Canada,
+ *    and the other regional ACC hosts; see regionFromAccUrl)
  */
 export function parseAccUrl(url: string): { projectId: string, folderId: string } | null {
   try {
@@ -42,15 +45,9 @@ export function parseAccUrl(url: string): { projectId: string, folderId: string 
   }
 }
 
-const ACC_BASE_URLS: Record<string, string> = {
-  US: 'https://acc.autodesk.com',
-  EMEA: 'https://acc.autodesk.eu',
-  AU: 'https://acc.autodesk.com.au',
-  CA: 'https://acc.can.autodesk.com'
-}
-
+/** "Open in ACC" link on the ACC site of the project's region (US when unknown). */
 export function buildAccProjectUrl(projectId: string, region?: string, itemUrn?: string): string {
-  const base = ACC_BASE_URLS[region || 'US'] || ACC_BASE_URLS.US
+  const base = ACC_BASE_URLS[normalizeApsRegion(region) ?? 'US']
   const id = projectId.replace(/^b\./, '')
   const url = `${base}/docs/files/projects/${id}`
   if (itemUrn) return `${url}?entityId=${encodeURIComponent(itemUrn)}`

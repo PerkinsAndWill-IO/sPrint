@@ -64,6 +64,11 @@ async function initForgeViewer() {
 
     // Initialize the viewer SDK once per page lifetime
     if (!viewerInitialized) {
+      // Route each model to its region's data centre from its URN (AUS, CAN,
+      // DEU, IND, JPN, GBR as well as US/EMEA). Needs Viewer 7.109.1+, which
+      // the 7.* script URL serves:
+      // https://aps.autodesk.com/blog/expanding-regional-offerings-uk-germany-japan-india-and-canada-phase-ii
+      Autodesk.Viewing.FeatureFlags?.set('DS_ENDPOINTS', true)
       await new Promise<void>((resolve) => {
         const options: Autodesk.Viewing.InitializerOptions = {
           env: props.region === 'EMEA' ? 'AutodeskProduction2' : 'AutodeskProduction',
