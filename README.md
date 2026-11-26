@@ -59,6 +59,29 @@ Important: run `postinstall` (Nuxt prepare) after install. This generates `.nuxt
 3. `pnpm run postinstall` (runs `nuxt prepare`)
 4. `pnpm run dev --port 3000`
 
+### Logging & analytics (PostHog)
+
+All logging and analytics go through one small port, `Telemetry`
+(`app/shared/telemetry/telemetry.ts`): `debug/info/warn/error`, `captureException`,
+`track`, `identify`. Use `useTelemetry()` in the app and `useRequestTelemetry(event)`
+in server routes. Never import `posthog-js` or `posthog-node` outside the adapters
+(`app/app/telemetry/posthog-adapter.ts`, `app/server/telemetry/posthog-adapter.ts`).
+
+- Log lines go to **PostHog Logs**, exceptions to **Error Tracking**, product events
+  (`hubs_loaded`, `file_selected`, `export_started`/`export_completed`/`export_failed`, …)
+  to Product Analytics.
+- Every failed APS call is logged server side as `aps.request_failed` with the route,
+  APS path, HTTP status, APS error code/message, hub/project ids, region and duration.
+- The server also writes every line to stdout (Vercel runtime logs).
+- Users are identified by their Autodesk user id only. Tokens, auth codes, cookies,
+  signed URLs and emails are scrubbed before anything is sent (`app/shared/telemetry/scrub.ts`).
+
+| Variable | Notes |
+|---|---|
+| `POSTHOG_KEY` | PostHog project API key (public, write-only), read at build time. Unset = console only. |
+| `POSTHOG_HOST` | Defaults to `https://us.i.posthog.com`. |
+| `NUXT_PUBLIC_POSTHOG_KEY` / `NUXT_PUBLIC_POSTHOG_HOST` | Same values, read at runtime (no rebuild needed). |
+
 <br/><br/>
 
 ## Plugin Architecture 🏛️

@@ -10,11 +10,14 @@ export default eventHandler(async (event) => {
 
   const hubId = validateApsId(query.hubId as string)
 
+  const log = useRequestTelemetry(event, { hub_id: hubId, region: query.region })
   const token = await getApsAccessToken(event)
 
   const response = await apsFetch<{ data: Array<{ id: string, attributes: { name: string } }> }>(
     token,
-    `/project/v1/hubs/${hubId}/projects`
+    `/project/v1/hubs/${hubId}/projects`,
+    undefined,
+    log
   )
 
   const projects: ApsProject[] = response.data.map(project => ({

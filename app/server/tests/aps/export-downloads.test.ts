@@ -8,6 +8,7 @@ import { PDFDocument } from 'pdf-lib'
 import { getApsAccessToken, modelDerivativePath, regionHeader } from '../../utils/aps'
 import { downloadAllDerivatives } from '../../utils/aps-download'
 import { mergePdfBuffers } from '../../utils/pdf-merge'
+import { useRequestTelemetry } from '../../utils/telemetry'
 
 const nativeFetch = globalThis.fetch
 const networkDelay = process.env.SPRINT_EXPORT_BENCHMARK ? 20 : 2
@@ -22,7 +23,7 @@ let fixtures: Uint8Array[]
 
 beforeAll(async () => {
   // Supply Nitro's framework auto-imports, keeping the endpoint and APS code real.
-  for (const [name, value] of Object.entries({ createError, eventHandler, getCookie, readBody, sendStream, setResponseHeaders, getApsAccessToken, modelDerivativePath, regionHeader, downloadAllDerivatives })) {
+  for (const [name, value] of Object.entries({ createError, eventHandler, getCookie, readBody, sendStream, setResponseHeaders, getApsAccessToken, modelDerivativePath, regionHeader, downloadAllDerivatives, useRequestTelemetry })) {
     vi.stubGlobal(name, value)
   }
   const { default: handler } = await import('../../api/aps/export-derivatives.post')

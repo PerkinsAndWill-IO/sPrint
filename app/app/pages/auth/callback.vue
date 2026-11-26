@@ -7,7 +7,8 @@ onMounted(async () => {
   try {
     await api('/api/auth/aps/exchange', { method: 'POST' })
     await navigateTo('/dashboard')
-  } catch {
+  } catch (error) {
+    reportFailure('sign_in.failed', { stage: 'exchange' }, error, 'error')
     await navigateTo('/')
   }
 })

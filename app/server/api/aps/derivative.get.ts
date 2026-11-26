@@ -7,15 +7,17 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'urn and derivativeUrn are required' })
   }
 
+  let log = useRequestTelemetry(event, { region: query.region })
   const urn = validateUrn(query.urn as string)
   const derivativeUrnValue = validateDerivativeUrn(query.derivativeUrn as string)
-  const region = validateRegion(query.region as string | undefined)
+  const region = validateRegion(query.region, log)
+  log = useRequestTelemetry(event, { region })
   const displayName = typeof query.name === 'string' ? query.name : undefined
 
   const token = await getApsAccessToken(event)
 
-  const signedInfo = await getSignedDerivativeUrl(urn, derivativeUrnValue, token, region)
-  const file = await downloadDerivative(signedInfo, derivativeUrnValue, displayName)
+  const signedInfo = await getSignedDerivativeUrl(urn, derivativeUrnValue, token, region, log)
+  const file = await downloadDerivative(signedInfo, derivativeUrnValue, displayName, log)
 
   const contentType = (query.mimeType as string) || inferMimeType(derivativeUrnValue)
   const isInline = contentType.startsWith('image/') || contentType === 'application/pdf' || contentType === 'application/json'

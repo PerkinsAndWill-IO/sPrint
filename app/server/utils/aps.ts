@@ -1,4 +1,7 @@
 import type { H3Event } from 'h3'
+import type { Telemetry } from '#shared/telemetry/telemetry'
+import type { ApsRegion } from '#shared/aps/region'
+import { getServerTelemetry, markLogged, useRequestTelemetry } from './telemetry'
 
 const APS_BASE_URL = 'https://developer.api.autodesk.com'
 
@@ -21,6 +24,7 @@ async function refreshAccessToken(event: H3Event): Promise<string> {
   tokenData.append('grant_type', 'refresh_token')
   tokenData.append('refresh_token', refreshToken)
 
+  const started = Date.now()
   const tokenResponse = await fetch(`${APS_BASE_URL}/authentication/v2/token`, {
     method: 'POST',
     headers: {
@@ -31,10 +35,17 @@ async function refreshAccessToken(event: H3Event): Promise<string> {
   })
 
   if (!tokenResponse.ok) {
+    const body = await tokenResponse.text().catch(() => '')
+    useRequestTelemetry(event).warn('auth.refresh_failed', {
+      aps_path: '/authentication/v2/token',
+      aps_status: tokenResponse.status,
+      ...parseApsError(body),
+      duration_ms: Date.now() - started
+    })
     // Refresh token is invalid — clear cookies and force re-login
     setCookie(event, 'aps_access_token', '', { maxAge: 0 })
     setCookie(event, 'aps_refresh_token', '', { maxAge: 0 })
-    throw createError({ statusCode: 401, statusMessage: 'Session expired, please log in again' })
+    throw markLogged(createError({ statusCode: 401, statusMessage: 'Session expired, please log in again' }))
   }
 
   const tokens = await tokenResponse.json()
@@ -68,14 +79,26 @@ export async function getApsAccessToken(event: H3Event): Promise<string> {
   return await refreshAccessToken(event)
 }
 
-export function modelDerivativePath(path: string, region?: string): string {
+/**
+ * Model Derivative routing. EMEA keeps its dedicated `/regions/eu/` URI
+ * (where the `region` header is ignored); every other region uses the
+ * global URI plus the `region` header (regionHeader). Model Derivative
+ * change history, 2023-12-01 and 2025-06-30:
+ * https://aps.autodesk.com/en/docs/model-derivative/v2/change_history
+ */
+export function modelDerivativePath(path: string, region?: ApsRegion): string {
   if (region === 'EMEA') {
     return path.replace('/modelderivative/v2/', '/modelderivative/v2/regions/eu/')
   }
   return path
 }
 
-export function regionHeader(region?: string): Record<string, string> {
+/**
+ * Model Derivative `region` header (US, EMEA, AUS, CAN, DEU, IND, JPN, GBR).
+ * US is the default, so it is left out.
+ * https://aps.autodesk.com/en/docs/model-derivative/v2/reference/urn-manifest-derivativeurn-GET
+ */
+export function regionHeader(region?: ApsRegion): Record<string, string> {
   if (region && region !== 'US') {
     return { Region: region }
   }
@@ -97,25 +120,116 @@ export function sanitizeApsError(statusCode: number, _detail: unknown): string {
   return `APS API error (${statusCode})`
 }
 
-export async function apsFetch<T>(token: string, path: string, region?: string): Promise<T> {
+export interface ApsErrorDetail {
+  aps_error_code?: string
+  aps_error_message?: string
+}
+
+/**
+ * Pulls the error code and message out of an APS error body. APS services
+ * answer in several shapes: JSON:API `errors[]` (Data Management),
+ * `developerMessage`/`errorCode` (legacy), `code`/`message`, OAuth
+ * `error`/`error_description`, and Model Derivative `diagnostic`.
+ * Server-side logging only; the client still gets sanitizeApsError.
+ */
+export function parseApsError(body: unknown): ApsErrorDetail {
+  let data = body
+  if (typeof body === 'string') {
+    try {
+      data = JSON.parse(body)
+    } catch {
+      return body ? { aps_error_message: body.slice(0, 500) } : {}
+    }
+  }
+  if (!data || typeof data !== 'object') return {}
+  const d = data as Record<string, unknown>
+  const first = Array.isArray(d.errors) ? d.errors[0] as Record<string, unknown> | undefined : undefined
+  const str = (...values: unknown[]) => {
+    const found = values.find(v => (typeof v === 'string' && v) || typeof v === 'number')
+    return found === undefined ? undefined : String(found)
+  }
+  return {
+    aps_error_code: str(first?.code, d.errorCode, d.code, d.error),
+    aps_error_message: str(first?.detail, first?.title, d.developerMessage, d.userMessage, d.message, d.error_description, d.diagnostic, d.reason)
+  }
+}
+
+/**
+ * Logs a failed APS call: warn for 4xx; error plus an Error Tracking
+ * exception for 5xx and network failures. Callers mark the thrown error as
+ * logged, so the Nitro error hook does not report it a second time.
+ */
+export function logApsFailure(log: Telemetry | undefined, context: { aps_status?: number, aps_path?: unknown } & Record<string, unknown>) {
+  const logger = log ?? getServerTelemetry()
+  if (context.aps_status && context.aps_status < 500) {
+    logger.warn('aps.request_failed', context)
+    return
+  }
+  logger.error('aps.request_failed', context)
+  logger.captureException(new Error(`APS request failed (${context.aps_status ?? 'network error'}) ${String(context.aps_path ?? '')}`.trim()), context)
+}
+
+/** APS path without the host, for logs. */
+function apsPathOf(url: string): string {
+  return url.startsWith(APS_BASE_URL) ? url.slice(APS_BASE_URL.length) : url
+}
+
+/**
+ * GET an APS endpoint with the user's token. Every failure is logged with the
+ * APS path, HTTP status, APS error code/message, region and duration; pass the
+ * route's telemetry (useRequestTelemetry) so the line also carries the route,
+ * user and hub/project ids. Callers see only the sanitized status.
+ */
+export async function apsFetch<T>(token: string, path: string, region?: ApsRegion, log?: Telemetry): Promise<T> {
   const url = buildApsUrl(path)
+  const started = Date.now()
   try {
-    return await $fetch(url, {
+    const result = await $fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
         ...regionHeader(region)
       }
     }) as T
+    log?.debug('aps.request', { aps_path: apsPathOf(url), region, duration_ms: Date.now() - started })
+    return result
   } catch (err: unknown) {
     const fetchErr = err as { status?: number, data?: unknown, message?: string }
     const status = fetchErr.status || 502
-    if (import.meta.dev) {
-      const detail = fetchErr.data ? JSON.stringify(fetchErr.data) : fetchErr.message
-      console.error(`[APS] ${status}: ${detail}`)
-    }
-    throw createError({
+    logApsFailure(log, {
+      aps_path: apsPathOf(url),
+      aps_status: fetchErr.status,
+      ...parseApsError(fetchErr.data ?? fetchErr.message),
+      region,
+      duration_ms: Date.now() - started,
+      network_error: fetchErr.status ? undefined : true
+    })
+    throw markLogged(createError({
       statusCode: status,
       statusMessage: sanitizeApsError(status, fetchErr.data)
-    })
+    }))
+  }
+}
+
+/**
+ * GET an APS endpoint where a 4xx is an expected answer, not a failure (for
+ * example probing which hub holds a project). Returns undefined instead of
+ * throwing. 403/404 (not this resource) are logged at debug only; anything
+ * else (401, 429, 5xx, network) is logged as a failure, still without
+ * throwing.
+ */
+export async function apsTryFetch<T>(token: string, path: string, log?: Telemetry): Promise<T | undefined> {
+  const url = buildApsUrl(path)
+  const started = Date.now()
+  try {
+    return await $fetch(url, { headers: { Authorization: `Bearer ${token}` } }) as T
+  } catch (err: unknown) {
+    const fetchErr = err as { status?: number, data?: unknown, message?: string }
+    const context = { aps_path: apsPathOf(url), aps_status: fetchErr.status, duration_ms: Date.now() - started }
+    if (fetchErr.status === 403 || fetchErr.status === 404) {
+      log?.debug('aps.probe_miss', context)
+    } else {
+      logApsFailure(log, { ...context, ...parseApsError(fetchErr.data ?? fetchErr.message), network_error: fetchErr.status ? undefined : true })
+    }
+    return undefined
   }
 }

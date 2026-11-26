@@ -9,6 +9,7 @@ import {
 import type { FavoriteProject } from '~/utils/favorites'
 import { isFavorited, toggleFavoriteInList } from '~/utils/favorites'
 import { shouldLoadChildren } from '~/utils/tree-loading'
+import { regionFromAccUrl } from '#shared/aps/region'
 
 function makeLoadingPlaceholder(parentId: string): ApsTreeItem {
   return {
@@ -64,9 +65,16 @@ export function useApsProjects() {
     loading.value = true
     warnings.value = []
     expandedKeys.value = []
+    const started = performance.now()
     try {
       const response = await api('/api/aps/hubs')
       warnings.value = response.warnings || []
+      useTelemetry().track('hubs_loaded', {
+        hub_count: response.hubs.length,
+        warning_count: warnings.value.length,
+        regions: [...new Set(response.hubs.map(h => h.region))],
+        duration_ms: Math.round(performance.now() - started)
+      })
       items.value = response.hubs.map((hub): ApsTreeItem => ({
         label: hub.name,
         icon: 'i-lucide-building-2',
@@ -77,9 +85,35 @@ export function useApsProjects() {
         children: [makeLoadingPlaceholder(`hub-${hub.id}`)]
       }))
     } catch (error) {
-      console.error('Failed to load hubs:', error)
+      reportFailure('hubs.load_failed', {}, error, 'error')
     } finally {
       loading.value = false
+    }
+  }
+
+  /**
+   * Fills in the region of a hub added by id, or of a project added by link
+   * before sPrint stored one. Without it, model calls go to the US data
+   * centre and fail for hubs elsewhere. Best effort: on failure the node
+   * keeps no region (US), as before.
+   */
+  async function ensureRegion(item: ApsTreeItem) {
+    if (item._region) return
+    const params = item._folderId
+      ? (item._projectId ? { projectId: item._projectId } : undefined)
+      : (item._hubId && item._hubId !== 'external' ? { hubId: item._hubId } : undefined)
+    if (!params) return
+    try {
+      const resolved = await api('/api/aps/region', { params })
+      if (!resolved.region) return
+      item._region = resolved.region
+      if (item._folderId) {
+        storedExternalProjects.value = storedExternalProjects.value.map(p =>
+          p.projectId === item._projectId && p.folderId === item._folderId ? { ...p, region: resolved.region } : p
+        )
+      }
+    } catch {
+      // `api` already logged the failed call
     }
   }
 
@@ -87,7 +121,18 @@ export function useApsProjects() {
     const hubId = item._hubId
     if (!hubId) return
 
-    const projects = await api('/api/aps/projects', { params: { hubId } })
+    const started = performance.now()
+    // Hubs from the hub list carry their region; a hub added by id does not
+    const manualHub = !item._region
+    await ensureRegion(item)
+    const projects = await api('/api/aps/projects', { params: { hubId, region: item._region } })
+    useTelemetry().track('projects_loaded', {
+      hub_id: hubId,
+      region: item._region,
+      manual_hub: manualHub,
+      project_count: projects.length,
+      duration_ms: Math.round(performance.now() - started)
+    })
     const children: ApsTreeItem[] = projects.map((project): ApsTreeItem => ({
       label: project.name,
       icon: 'i-lucide-folder-kanban',
@@ -110,7 +155,7 @@ export function useApsProjects() {
     const projectId = item._projectId
     if (!hubId || !projectId) return
 
-    const folders = await api('/api/aps/top-folders', { params: { hubId, projectId } })
+    const folders = await api('/api/aps/top-folders', { params: { hubId, projectId, region: item._region } })
     const children: ApsTreeItem[] = folders.map((folder): ApsTreeItem => ({
       label: folder.name,
       _apsType: 'folder',
@@ -131,7 +176,7 @@ export function useApsProjects() {
     const folderId = item._apsId.replace('folder-', '')
     if (!projectId) return
 
-    const contents = await api('/api/aps/folder-contents', { params: { projectId, folderId } })
+    const contents = await api('/api/aps/folder-contents', { params: { projectId, folderId, region: item._region } })
     const children: ApsTreeItem[] = contents.map((content): ApsTreeItem => {
       if (content.type === 'folders') {
         return {
@@ -176,6 +221,8 @@ export function useApsProjects() {
         case 'project':
           // External projects already have children loaded, but if not, use folder contents
           if (item._folderId) {
+            // Projects added by link before regions were stored
+            await ensureRegion(item)
             await loadFolderContents({ ...item, _apsId: `folder-${item._folderId}` }, item._apsId)
           } else {
             await loadTopFolders(item)
@@ -185,7 +232,15 @@ export function useApsProjects() {
           await loadFolderContents(item)
           break
       }
-    } catch {
+    } catch (error) {
+      reportFailure('tree.load_failed', {
+        node_type: item._apsType,
+        hub_id: item._hubId,
+        project_id: item._projectId,
+        folder_id: item._folderId,
+        region: item._region,
+        external: Boolean(item._folderId)
+      }, error)
       findAndReplaceChildren(items.value, item._apsId, [{
         label: 'Failed to load — collapse and expand to retry',
         icon: 'i-lucide-alert-circle',
@@ -232,6 +287,8 @@ export function useApsProjects() {
     }
 
     const eventSource = new EventSource(`/api/aps/revit-files?${params.toString()}`)
+    const started = performance.now()
+    const searchContext = { hub_id: hubId, project_id: projectId, external: Boolean(folderId) }
 
     eventSource.onmessage = (event) => {
       const data: RevitFileSSEEvent = JSON.parse(event.data)
@@ -249,11 +306,17 @@ export function useApsProjects() {
           searchProgress.value = `Scanning: ${data.folder} (${data.scanned} folders scanned)`
           break
         case 'done':
+          useTelemetry().track('revit_search_completed', {
+            ...searchContext,
+            file_count: searchResults.value.length,
+            duration_ms: Math.round(performance.now() - started)
+          })
           searchProgress.value = ''
           searchingProject.value = null
           eventSource.close()
           break
         case 'error':
+          reportFailure('revit_search.failed', searchContext, new Error(data.message))
           searchProgress.value = `Error: ${data.message}`
           searchingProject.value = null
           eventSource.close()
@@ -262,6 +325,7 @@ export function useApsProjects() {
     }
 
     eventSource.onerror = () => {
+      useTelemetry().warn('revit_search.connection_lost', { ...searchContext, duration_ms: Math.round(performance.now() - started) })
       searchProgress.value = 'Connection lost'
       searchingProject.value = null
       eventSource.close()
@@ -284,6 +348,7 @@ export function useApsProjects() {
       items.value = [...items.value, node]
     }
     storedManualHubs.value = [...new Set([...storedManualHubs.value, id])]
+    useTelemetry().track('manual_hub_added', { hub_id: id })
     expandNode(node)
     return node
   }
@@ -294,11 +359,24 @@ export function useApsProjects() {
 
   async function addExternalProject(url: string) {
     const parsed = parseBim360Url(url)
-    if (!parsed) throw new Error('Invalid BIM 360 / ACC URL')
+    if (!parsed) {
+      useTelemetry().warn('external_project.invalid_url')
+      throw new Error('Invalid BIM 360 / ACC URL')
+    }
 
-    const response = await api('/api/aps/project-info', {
-      params: { projectId: parsed.projectId, folderId: parsed.folderId }
-    })
+    let response
+    try {
+      response = await api('/api/aps/project-info', {
+        // The link's host names the region (acc.can.autodesk.com, ...); the
+        // server confirms it from the project's hub
+        params: { projectId: parsed.projectId, folderId: parsed.folderId, regionHint: regionFromAccUrl(url) }
+      })
+    } catch (error) {
+      reportFailure('external_project.add_failed', { project_id: parsed.projectId, folder_id: parsed.folderId }, error)
+      throw error
+    }
+    const region = response.region
+    useTelemetry().track('external_project_added', { project_id: parsed.projectId, region, item_count: response.contents.length })
 
     const children: ApsTreeItem[] = response.contents.map((content): ApsTreeItem => {
       if (content.type === 'folders') {
@@ -307,6 +385,7 @@ export function useApsProjects() {
           _apsType: 'folder',
           _apsId: `folder-${content.id}`,
           _projectId: parsed.projectId,
+          _region: region,
           _projectName: response.folderName,
           children: [makeLoadingPlaceholder(`folder-${content.id}`)]
         }
@@ -317,6 +396,7 @@ export function useApsProjects() {
         _apsType: 'item',
         _apsId: `item-${content.id}`,
         _projectId: parsed.projectId,
+        _region: region,
         _projectName: response.folderName
       }
     })
@@ -329,6 +409,7 @@ export function useApsProjects() {
       _apsId: `project-${parsed.projectId}-${parsed.folderId}`,
       _projectId: parsed.projectId,
       _folderId: parsed.folderId,
+      _region: region,
       _projectName: response.folderName,
       _loaded: true,
       children
@@ -356,7 +437,8 @@ export function useApsProjects() {
     storedExternalProjects.value = upsertStoredExternalProject(storedExternalProjects.value, {
       projectId: parsed.projectId,
       folderId: parsed.folderId,
-      name: response.folderName
+      name: response.folderName,
+      region
     })
   }
 
@@ -409,7 +491,7 @@ export function useApsProjects() {
       }
       items.value = [...items.value]
     } catch (error) {
-      console.error('Failed to restore saved hubs/projects:', error)
+      useTelemetry().error('tree.restore_failed', { error_message: errorMessage(error) })
     }
   }
 

@@ -8,6 +8,9 @@ declare namespace Autodesk {
 
     function Initializer(options: InitializerOptions, callback: () => void): void
 
+    // Viewer 7.109.1+; absent on older builds
+    const FeatureFlags: { set(name: string, value: boolean): void } | undefined
+
     class Document {
       static load(
         documentId: string,

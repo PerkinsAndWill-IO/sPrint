@@ -10,16 +10,15 @@ const colorMode = useColorMode()
 const appConfig = useAppConfig()
 
 async function handleLogout() {
+  const telemetry = useTelemetry()
   try {
-    const { $posthog } = useNuxtApp()
-    const posthog = $posthog()
-    posthog?.capture('user_logged_out')
-    posthog?.reset()
+    telemetry.track('user_logged_out')
+    telemetry.reset()
 
     await $fetch('/api/auth/logout')
     await router.push('/')
   } catch (error) {
-    console.error('Logout failed:', error)
+    telemetry.error('auth.logout_failed', { error_message: errorMessage(error) })
   }
 }
 
@@ -45,24 +44,18 @@ onMounted(async () => {
       }
     }
 
-    // Identify user in PostHog
-    const { $posthog } = useNuxtApp()
-    const posthog = $posthog()
-    if (posthog) {
-      posthog.identify(profile.email, {
-        name: profile.name,
-        email: profile.email
-      })
+    // Analytics identity is the Autodesk user id only: no email or name
+    const telemetry = useTelemetry()
+    if (profile.id) telemetry.identify(profile.id)
 
-      // Track login event only on fresh login (cookie set by OAuth callback)
-      const cookie = useCookie('aps_just_logged_in')
-      if (cookie.value) {
-        posthog.capture('user_logged_in', { email: profile.email })
-        cookie.value = null
-      }
+    // Track login event only on fresh login (cookie set by OAuth callback)
+    const cookie = useCookie('aps_just_logged_in')
+    if (cookie.value) {
+      telemetry.track('user_logged_in')
+      cookie.value = null
     }
   } catch {
-    // If not authenticated or fetch fails, keep empty state
+    // If not authenticated or fetch fails, keep empty state (api logs the failure)
   }
 })
 

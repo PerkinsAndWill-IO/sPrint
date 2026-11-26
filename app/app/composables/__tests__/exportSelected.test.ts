@@ -7,7 +7,7 @@ let derivatives: ReturnType<typeof import('../useDerivatives').useDerivatives>
 
 beforeAll(async () => {
   for (const [name, value] of Object.entries({ computed, reactive, ref, shallowRef, computeDownloadBaseName })) vi.stubGlobal(name, value)
-  vi.stubGlobal('useNuxtApp', () => ({ $posthog: () => ({ capture }) }))
+  vi.stubGlobal('useTelemetry', () => ({ track: capture, error: vi.fn(), warn: vi.fn() }))
   const { useDerivatives } = await import('../useDerivatives')
   derivatives = useDerivatives()
 })

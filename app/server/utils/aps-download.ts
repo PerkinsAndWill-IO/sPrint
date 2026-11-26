@@ -1,3 +1,8 @@
+import type { Telemetry } from '#shared/telemetry/telemetry'
+import type { ApsRegion } from '#shared/aps/region'
+import { logApsFailure, parseApsError } from './aps'
+import { getServerTelemetry, markLogged } from './telemetry'
+
 const APS_BASE_URL = 'https://developer.api.autodesk.com'
 
 // Share the budget across models and requests in this server instance.
@@ -93,11 +98,12 @@ export function inferMimeType(urn: string): string {
   return 'application/octet-stream'
 }
 
-export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string, token: string, region?: string): Promise<SignedCookieInfo> {
+export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string, token: string, region?: ApsRegion, log?: Telemetry): Promise<SignedCookieInfo> {
   const encodedDerivativeUrn = encodeURIComponent(derivativeUrn)
-  const basePath = `/modelderivative/v2/designdata/${urn}/manifest/${encodedDerivativeUrn}/signedcookies?useCdn=true`
-  const url = `${APS_BASE_URL}${modelDerivativePath(basePath, region)}`
+  const basePath = modelDerivativePath(`/modelderivative/v2/designdata/${urn}/manifest/${encodedDerivativeUrn}/signedcookies?useCdn=true`, region)
+  const url = `${APS_BASE_URL}${basePath}`
 
+  const started = Date.now()
   const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -107,7 +113,14 @@ export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string,
 
   if (!response.ok) {
     const body = await response.text().catch(() => '')
-    throw new Error(`Failed to get signed cookies for ${derivativeUrn}: ${response.status} ${body}`)
+    logApsFailure(log, {
+      aps_path: basePath,
+      aps_status: response.status,
+      ...parseApsError(body),
+      region,
+      duration_ms: Date.now() - started
+    })
+    throw markLogged(new Error(`Failed to get signed cookies for ${derivativeUrn}: ${response.status} ${body}`))
   }
 
   const cookieHeader = response.headers.get('set-cookie') || ''
@@ -117,13 +130,19 @@ export async function getSignedDerivativeUrl(urn: string, derivativeUrn: string,
   return { url: body.url, policy, keyPairId, signature }
 }
 
-export async function downloadDerivative(signedInfo: SignedCookieInfo, derivativeUrn: string, displayName?: string): Promise<DerivativeFile> {
+export async function downloadDerivative(signedInfo: SignedCookieInfo, derivativeUrn: string, displayName?: string, log?: Telemetry): Promise<DerivativeFile> {
   const downloadUrl = buildCloudFrontUrl(signedInfo.url, signedInfo.policy, signedInfo.keyPairId, signedInfo.signature)
 
+  const started = Date.now()
   const response = await fetch(downloadUrl)
   if (!response.ok) {
     const body = await response.text().catch(() => '')
-    throw new Error(`Failed to download derivative: ${response.status} ${body}`)
+    // The signed CDN URL is a credential: log the status only
+    const logger = log ?? getServerTelemetry()
+    const context = { cdn_status: response.status, duration_ms: Date.now() - started }
+    logger.error('aps.derivative_download_failed', context)
+    logger.captureException(new Error(`Derivative download failed (${response.status})`), context)
+    throw markLogged(new Error(`Failed to download derivative: ${response.status} ${body}`))
   }
 
   const arrayBuffer = await response.arrayBuffer()
@@ -138,15 +157,15 @@ export interface DerivativeRef {
   name?: string
 }
 
-export async function downloadAllDerivatives(urn: string, derivatives: DerivativeRef[], token: string, region?: string): Promise<DerivativeFile[]> {
+export async function downloadAllDerivatives(urn: string, derivatives: DerivativeRef[], token: string, region?: ApsRegion, log?: Telemetry): Promise<DerivativeFile[]> {
   let failed = false
   let failure: unknown
   return Promise.all(
     derivatives.map(d => withDownloadSlot(async () => {
       if (failed) throw failure
       try {
-        const signedInfo = await getSignedDerivativeUrl(urn, d.urn, token, region)
-        return await downloadDerivative(signedInfo, d.urn, d.name)
+        const signedInfo = await getSignedDerivativeUrl(urn, d.urn, token, region, log)
+        return await downloadDerivative(signedInfo, d.urn, d.name, log)
       } catch (error) {
         failed = true
         failure = error
@@ -160,6 +179,8 @@ interface FileGroup {
   urn: string
   derivatives: DerivativeRef[]
   name?: string
+  /** Raw region from the request; validated by the route */
+  region?: string
 }
 
 const MERGE_SCOPES = ['none', 'per-model', 'all'] as const
@@ -170,6 +191,8 @@ interface ExportBodyFileGroup {
   urn: string
   derivatives: DerivativeInput[]
   name?: string
+  /** Region of this model; files from several hubs can be exported together */
+  region?: string
 }
 
 interface ExportBody {
@@ -226,7 +249,7 @@ export function parseExportBody(body: ExportBody): { fileGroups: FileGroup[], op
       if (normalized.length === 0) {
         return { error: 'Each file must have a non-empty derivatives array' }
       }
-      normalizedGroups.push({ urn: group.urn, derivatives: normalized, name: group.name })
+      normalizedGroups.push({ urn: group.urn, derivatives: normalized, name: group.name, region: typeof group.region === 'string' ? group.region : undefined })
     }
     return { fileGroups: normalizedGroups, options }
   }

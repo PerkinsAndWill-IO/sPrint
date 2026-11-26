@@ -4,14 +4,18 @@ export default eventHandler(async (event) => {
   const state = query.state as string
   const error = query.error as string | undefined
 
+  const log = useRequestTelemetry(event)
+
   // Check for OAuth error
   if (error) {
+    log.warn('auth.callback_failed', { reason: 'oauth_error', oauth_error: error, oauth_error_description: query.error_description })
     return sendRedirect(event, `/?error=${encodeURIComponent(error)}`, 302)
   }
 
   // Validate state
   const storedState = getCookie(event, 'aps_oauth_state')
   if (!storedState || storedState !== state) {
+    log.warn('auth.callback_failed', { reason: storedState ? 'state_mismatch' : 'state_cookie_missing' })
     return sendRedirect(event, '/?error=invalid_state', 302)
   }
 
@@ -24,6 +28,7 @@ export default eventHandler(async (event) => {
   })
 
   if (!code) {
+    log.warn('auth.callback_failed', { reason: 'missing_code' })
     return sendRedirect(event, '/?error=missing_code', 302)
   }
 

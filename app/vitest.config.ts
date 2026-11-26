@@ -4,7 +4,8 @@ import { resolve } from 'node:path'
 export default defineConfig({
   resolve: {
     alias: {
-      '~': resolve('./app')
+      '~': resolve('./app'),
+      '#shared': resolve('./shared')
     }
   },
   test: {

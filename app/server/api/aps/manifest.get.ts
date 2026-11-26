@@ -9,8 +9,10 @@ export default eventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'urn is required' })
   }
 
+  let log = useRequestTelemetry(event, { region: query.region })
   const urn = validateUrn(query.urn as string)
-  const region = validateRegion(query.region as string | undefined)
+  const region = validateRegion(query.region, log)
+  log = useRequestTelemetry(event, { region })
 
   const token = await getApsAccessToken(event)
 
@@ -19,18 +21,19 @@ export default eventHandler(async (event) => {
     manifest = await apsFetch<ApsManifest>(
       token,
       modelDerivativePath(`/modelderivative/v2/designdata/${urn}/manifest`, region),
-      region
+      region,
+      log
     )
   } catch (err) {
     // No manifest = model has no published derivatives; a valid empty state,
     // not a server error
     if ((err as { statusCode?: number }).statusCode === 404) {
-      console.info(`[manifest] 404 from APS — no manifest/published derivatives (urn=${urn.slice(0, 24)}..., region=${region || 'US'})`)
+      log.info('aps.manifest_missing', { urn_prefix: urn.slice(0, 24) })
       return emptyManifestResponse()
     }
     // Unexpected APS/server error — propagate (auth handling relies on status)
     throw err
   }
 
-  return normalizeManifestResponse(manifest)
+  return normalizeManifestResponse(manifest, log)
 })

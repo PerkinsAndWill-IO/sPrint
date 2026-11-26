@@ -16,7 +16,9 @@ export default eventHandler(async (event) => {
   const hubId = query.hubId ? validateApsId(query.hubId as string) : undefined
   const folderId = query.folderId ? validateApsId(query.folderId as string) : undefined
 
+  const log = useRequestTelemetry(event, { hub_id: hubId, project_id: projectId, folder_id: folderId, external: Boolean(folderId) })
   const token = await getApsAccessToken(event)
+  const started = Date.now()
 
   setResponseHeader(event, 'Content-Type', 'text/event-stream')
   setResponseHeader(event, 'Cache-Control', 'no-cache')
@@ -38,7 +40,9 @@ export default eventHandler(async (event) => {
       // Normal hub project: fetch top folders via hubs API
       const topFoldersResponse = await apsFetch<{ data: Array<{ id: string, type: string, attributes: { displayName?: string, name?: string } }> }>(
         token,
-        `/project/v1/hubs/${hubId}/projects/${projectId}/topFolders`
+        `/project/v1/hubs/${hubId}/projects/${projectId}/topFolders`,
+        undefined,
+        log
       )
       topFolders = topFoldersResponse.data
         .filter(item => item.type === 'folders')
@@ -56,7 +60,7 @@ export default eventHandler(async (event) => {
         data: Array<{ type: string, id: string, attributes: { displayName?: string, name?: string, fileType?: string }, relationships?: { item?: { data?: { type: string, id: string } } } }>
         included?: Array<{ type: string, id: string, attributes: { displayName?: string, name?: string }, relationships?: { parent?: { data?: { type: string, id: string } } } }>
         links?: { next?: { href: string } }
-      }>(token, fullUrl)
+      }>(token, fullUrl, undefined, log)
 
       // Small delay to respect rate limits
       await new Promise(resolve => setTimeout(resolve, 50))
@@ -78,8 +82,10 @@ export default eventHandler(async (event) => {
     )
 
     send({ type: 'done', total: totalFiles })
+    log.info('revit_search.completed', { file_count: totalFiles, top_folder_count: topFolders.length, duration_ms: Date.now() - started })
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error'
+    if (!isLogged(error)) log.error('revit_search.failed', { error_message: message, duration_ms: Date.now() - started })
     send({ type: 'error', message })
   }
 
